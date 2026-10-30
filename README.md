@@ -4,7 +4,7 @@ A voice-first assistant for the Samsung Galaxy Watch 4 (Wear OS) that talks dire
 
 > Unofficial hobby project. Not affiliated with, sponsored or endorsed by Anthropic. "Claude" is a trademark of Anthropic, PBC, and is used here only to describe which API the app talks to.
 
-Based on [mushinlab/claude-watch](https://github.com/mushinlab/claude-watch) (MIT), adapted for the Galaxy Watch 4.
+Roadmap and milestone status: [docs/phase-1-plan.md](docs/phase-1-plan.md).
 
 ## Features
 

@@ -1,0 +1,27 @@
+# Android / Gradle
+.gradle/
+build/
+captures/
+*.apk
+*.aab
+*.keystore
+*.jks
+.externalNativeBuild/
+.cxx/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
+# Secrets
+local.properties
+.env
+.env.*
+secrets.properties
+
+# Node (phase 2 bridge)
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db

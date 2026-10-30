@@ -11,10 +11,12 @@ captures/
 
 # Android Studio / IntelliJ
 .idea/
+.kotlin/
 *.iml
 
 # Secrets
 local.properties
+keystore.properties
 .env
 .env.*
 secrets.properties

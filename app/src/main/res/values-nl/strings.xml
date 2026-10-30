@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chat_hint">Tik op de microfoon en vraag</string>
+    <string name="chat_retry">Opnieuw</string>
+    <string name="chat_ask_by_voice">Vraag met je stem</string>
+    <string name="chat_new">Nieuwe chat</string>
+    <string name="chat_open_settings">Instellingen</string>
+    <string name="speech_prompt">Vraag het Wristle</string>
+
+    <string name="error_no_api_key">Geen API-key ingesteld. Open de instellingen.</string>
+    <string name="error_unauthorized">Key geweigerd (401). Controleer de API-key.</string>
+    <string name="error_api">API-fout %1$s</string>
+    <string name="error_network">Geen verbinding: %1$s</string>
+    <string name="error_timeout">Het antwoord duurde te lang.</string>
+    <string name="error_interrupted">Het verzoek is onderbroken.</string>
+    <string name="error_empty_reply">Geen antwoord. Probeer het anders te formuleren.</string>
+
+    <string name="settings_title">Instellingen</string>
+    <string name="settings_model">Model</string>
+    <string name="settings_effort">Effort</string>
+    <string name="settings_speak">Antwoord voorlezen</string>
+    <string name="settings_api_key">Claude API-key</string>
+    <string name="settings_api_key_missing">niet ingesteld</string>
+    <string name="settings_api_key_suffix">…%1$s</string>
+    <string name="settings_done">OK</string>
+
+    <string name="keys_saved">Key opgeslagen</string>
+
+    <string name="notification_channel_requests">Verzoeken</string>
+    <string name="notification_request_in_progress">Bezig met antwoorden…</string>
+</resources>

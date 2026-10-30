@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Wristle</string>
+
+    <string name="chat_hint">Tap the mic and ask</string>
+    <string name="chat_retry">Retry</string>
+    <string name="chat_ask_by_voice">Ask by voice</string>
+    <string name="chat_new">New chat</string>
+    <string name="chat_open_settings">Settings</string>
+    <string name="speech_prompt">Ask Wristle</string>
+
+    <string name="error_no_api_key">No API key set. Open settings.</string>
+    <string name="error_unauthorized">Key rejected (401). Check the API key.</string>
+    <string name="error_api">API error %1$s</string>
+    <string name="error_network">No connection: %1$s</string>
+    <string name="error_timeout">The reply took too long.</string>
+    <string name="error_interrupted">The request was interrupted.</string>
+    <string name="error_empty_reply">No reply. Try rephrasing.</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_model">Model</string>
+    <string name="settings_effort">Effort</string>
+    <string name="settings_speak">Read replies aloud</string>
+    <string name="settings_api_key">Claude API key</string>
+    <string name="settings_api_key_missing">not set</string>
+    <string name="settings_api_key_suffix">…%1$s</string>
+    <string name="settings_done">OK</string>
+
+    <string name="keys_saved">Key saved</string>
+
+    <string name="notification_channel_requests">Requests</string>
+    <string name="notification_request_in_progress">Answering…</string>
+</resources>

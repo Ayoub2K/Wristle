@@ -57,6 +57,7 @@ fun ChatScreen(
     onNewChat: () -> Unit,
     onRetry: () -> Unit,
     onSettings: () -> Unit,
+    onHistory: () -> Unit,
     onSeen: () -> Unit,
 ) {
     val listState = rememberScalingLazyListState()
@@ -76,7 +77,8 @@ fun ChatScreen(
     LaunchedEffect(state.messages.size) { followBottom = true }
     LaunchedEffect(state.messages.size, lastLength, state.failure, state.busy) {
         val itemCount = listState.layoutInfo.totalItemsCount
-        if (followBottom && itemCount > 0) listState.scrollToItem(itemCount - 1)
+        // An empty chat stays at the top so the mic button isn't pushed under the clock.
+        if (followBottom && itemCount > 0 && state.messages.isNotEmpty()) listState.scrollToItem(itemCount - 1)
     }
 
     Scaffold(
@@ -131,8 +133,13 @@ fun ChatScreen(
                 when {
                     state.waitingForFirstWord -> Thinking()
                     state.busy -> Unit
-                    empty -> SmallButton("⚙", stringResource(R.string.chat_open_settings), onSettings)
-                    else -> ChatControls(onMic = onMic, onNewChat = onNewChat, onSettings = onSettings)
+                    empty ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            SettingsButton(onSettings)
+                            HistoryButton(onHistory)
+                        }
+                    else ->
+                        ChatControls(onMic = onMic, onNewChat = onNewChat, onSettings = onSettings, onHistory = onHistory)
                 }
             }
         }
@@ -182,33 +189,43 @@ private fun MicButton(
 
 @Composable
 private fun SmallButton(
-    symbol: String,
     description: String,
     onClick: () -> Unit,
+    content: @Composable () -> Unit,
 ) {
     Button(
         onClick = onClick,
         colors = ButtonDefaults.secondaryButtonColors(),
         modifier = Modifier.size(ButtonDefaults.SmallButtonSize).semantics { contentDescription = description },
     ) {
-        Text(symbol)
+        content()
     }
 }
+
+@Composable
+private fun SettingsButton(onClick: () -> Unit) = SmallButton(stringResource(R.string.chat_open_settings), onClick) { Text("⚙") }
+
+@Composable
+private fun HistoryButton(onClick: () -> Unit) =
+    SmallButton(stringResource(R.string.history_title), onClick) {
+        Icon(painter = painterResource(R.drawable.ic_history), contentDescription = null, modifier = Modifier.size(18.dp))
+    }
 
 @Composable
 private fun ChatControls(
     onMic: () -> Unit,
     onNewChat: () -> Unit,
     onSettings: () -> Unit,
+    onHistory: () -> Unit,
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(top = 8.dp),
-    ) {
-        SmallButton("＋", stringResource(R.string.chat_new), onNewChat)
+    // Four buttons in one row don't fit the round screen: mic on top, the small actions below it.
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 8.dp)) {
         MicButton(onMic = onMic)
-        SmallButton("⚙", stringResource(R.string.chat_open_settings), onSettings)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+            SmallButton(stringResource(R.string.chat_new), onNewChat) { Text("＋") }
+            SettingsButton(onSettings)
+            HistoryButton(onHistory)
+        }
     }
 }
 

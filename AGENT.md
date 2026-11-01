@@ -40,7 +40,7 @@ These repositories are named here for your context only. **Do not mention them a
 
 The repo is public. Do not use Anthropic's name or logo: no "Claude" as the app name, no Claude logo or look-alike icons. "Claude" may appear only to describe which API is used (e.g. "Claude API key", `ClaudeApiBackend`). The README carries an "unofficial, not affiliated" disclaimer.
 
-The owner chose to use Claude's terracotta (`#D97757`) as the accent colour (`ui/Colors.kt`, launcher icon). Keep it.
+The owner chose to use Claude's terracotta (`#D97757`) as the accent colour (`ui/Colors.kt`, launcher icon). Keep it. The launcher icon is an original octopus whose middle tentacles form a "w"; keep it original rather than copying Anthropic's logo or mascot.
 
 ## Build and test
 
@@ -68,7 +68,7 @@ Package `dev.ayoub.wristle` under `app/src/main/java/`:
 | `data/` | `ChatRepository` (depends only on `ChatBackend`), `ChatSession`, `ChatStore`, `SettingsRepository`, `SecretCipher` |
 | `speech/` | `SystemSpeechInput` (watch recognizer), `ReplySpeaker` (TTS, sentence by sentence) |
 | `service/` | Foreground service while a request runs |
-| `ui/` | Compose for Wear OS screens and view models |
+| `ui/` | Compose for Wear OS screens and view models: `home/` (start screen: Chat and Code halves), `chat/`, `history/`, `settings/` |
 | `assist/` | Voice interaction service so the app can be the digital assistant |
 | `tile/` | Wear tile with a mic button that opens the app into listening |
 
@@ -77,5 +77,5 @@ Package `dev.ayoub.wristle` under `app/src/main/java/`:
 - Kotlin official style, enforced by ktlint. Compose for Wear OS (`androidx.wear.compose`).
 - Manual DI through `AppContainer`; no DI framework.
 - Match the density of comments in the surrounding code (sparse; explain why, not what).
-- User-facing text goes in `res/values/strings.xml` (English) with a Dutch translation in `res/values-nl/strings.xml`.
+- The app UI is English only: user-facing text goes in `res/values/strings.xml`, with no translations. Speech recognition and read-aloud follow the watch language.
 - Default model IDs are in `SettingsRepository.MODELS`.

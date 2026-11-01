@@ -75,6 +75,7 @@ class MainActivity : ComponentActivity() {
                 chatViewModel = chatViewModel,
                 settingsViewModel = settingsViewModel,
                 navigationRequest = navigationRequest,
+                onOpenChat = ::openChat,
                 onMic = ::listen,
                 onNewChat = {
                     chatViewModel.newChat()
@@ -93,21 +94,38 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleLaunch(intent: Intent?) {
-        navigate(Destination.CHAT)
-        if (!chatViewModel.shouldStartFreshChat) return
-        chatViewModel.newChat()
         val prompt = if (BuildConfig.DEBUG) intent?.getStringExtra(EXTRA_PROMPT) else null
+        // The Home key (assistant) and the tile go straight to listening; the app list shows the start screen.
+        val listenNow =
+            intent?.action == Intent.ACTION_ASSIST ||
+                intent?.action == Intent.ACTION_VOICE_COMMAND ||
+                intent?.getBooleanExtra(EXTRA_LISTEN, false) == true ||
+                !prompt.isNullOrBlank()
         when {
+            !chatViewModel.shouldStartFreshChat -> navigate(Destination.CHAT)
             !settingsViewModel.hasApiKey -> {
                 navigate(Destination.SETTINGS)
                 editApiKey()
             }
-            !prompt.isNullOrBlank() -> chatViewModel.send(prompt)
-            shouldAskNotificationPermission() -> {
-                container.settingsRepository.markNotificationPermissionAsked()
-                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            !listenNow -> navigate(Destination.HOME)
+            !prompt.isNullOrBlank() -> {
+                navigate(Destination.CHAT)
+                chatViewModel.newChat()
+                chatViewModel.send(prompt)
             }
-            else -> listen()
+            else -> openChat()
+        }
+    }
+
+    private fun openChat() {
+        navigate(Destination.CHAT)
+        if (!chatViewModel.shouldStartFreshChat) return
+        chatViewModel.newChat()
+        if (shouldAskNotificationPermission()) {
+            container.settingsRepository.markNotificationPermissionAsked()
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            listen()
         }
     }
 
@@ -141,6 +159,7 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_PROMPT = "prompt"
+        const val EXTRA_LISTEN = "listen"
         private const val KEY_INPUT = "api_key"
     }
 }

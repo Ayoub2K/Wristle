@@ -22,6 +22,8 @@ data class ChatSession(
     val status: TurnStatus = TurnStatus.IDLE,
     val failure: Failure? = null,
     val seen: Boolean = true,
+    /** Epoch millis of the first question; 0 for an empty chat. */
+    val startedAt: Long = 0L,
 ) {
     val busy: Boolean get() = status == TurnStatus.PENDING
 
@@ -86,3 +88,12 @@ data class ChatSession(
 
     fun historyForRequest(): List<ChatMessage> = messages.filter { it.fromUser || it.text.isNotBlank() }
 }
+
+/** Past chats, newest first, capped at [MAX_HISTORY]; empty chats are not kept. */
+fun List<ChatSession>.withArchived(session: ChatSession): List<ChatSession> {
+    if (session.messages.none { it.fromUser }) return this
+    val archived = session.interrupted().copy(seen = true)
+    return (listOf(archived) + this).take(MAX_HISTORY)
+}
+
+const val MAX_HISTORY = 20

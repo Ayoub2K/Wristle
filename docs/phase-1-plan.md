@@ -49,7 +49,7 @@ What the app does today:
 
 - Set up the project under the package `dev.ayoub.wristle`.
 - Removed the Notion integration, the Russian text and the Anthropic name and logo.
-- English strings plus a Dutch translation; English system prompt; date format follows the device locale.
+- English strings (the Dutch translation was later removed: the UI is English only); English system prompt; date format follows the device locale.
 - Windows key setup script; English README with sideload steps.
 
 **Done when:** the release APK installs on the Watch 4, the key can be set, and a question (spoken, or typed via the debug `--es prompt` hook) gets a streamed and spoken reply.
@@ -83,15 +83,19 @@ Not needed after M2: the system recognizer is reliable. Moving speech handling i
 
 **Done when:** the app behaves the same on the watch, and a second backend can be added by implementing `ChatBackend` without changing UI or speech code.
 
-### M6: Daily-use polish (optional, decide after M5)
+### M6: Daily-use polish ✅ (2026-11-01)
 
-Candidates, to prioritise with the owner after real use:
+Chosen by the owner and done:
 
-- Release signing with an own keystore.
-- Battery and latency check over a day of normal use.
-- Shorter default replies or a "short / normal" toggle.
-- Chat history beyond the current conversation.
-- Upgrade dependencies (anthropic-java 3.x, AGP) as a separate, tested change.
+- **Start screen**: two half moons on the round display, *Chat* (left, terracotta) and *Code* (right, darker terracotta), split by a straight line. *Code* shows "coming in a later version" until phase 2. The app list opens this screen; the Home key and the tile still go straight to listening.
+- **Short / longer replies** toggle in settings (1–3 sentences vs. up to ~8).
+- **Chat history**: the last 20 chats are kept (`history.json`); a past chat can be reopened and continued. History button (clock icon) next to the settings button.
+- **Dependencies**: anthropic-java 3.3.0, AGP 9.5.0, Wear Tiles 1.6.2, ProtoLayout 1.4.2. okhttp stays on 4.12, the version the SDK itself uses.
+- **English-only UI**; speech recognition and read-aloud follow the watch language. The prompt's date is in English, so Claude answers in the language of the question.
+- **New launcher icon**: a small octopus whose middle tentacles form a "w" (an original design, not Anthropic's logo or mascot).
+- README rewritten with screenshots and a compatibility section.
+
+Not done (not chosen for now): release signing with an own keystore, a battery and latency measurement over a day.
 
 ## Architecture target
 
@@ -108,6 +112,7 @@ data/          ChatRepository (state, persistence), SettingsRepository, SecretCi
 service/       Foreground service while a request runs
 assist/        Voice interaction service (Home key launch)
 tile/          Tile with a mic button
+ui/home/       Start screen (Chat | Code), ui/history/ past chats
 ```
 
 Rules:

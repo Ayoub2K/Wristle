@@ -16,6 +16,7 @@ data class SettingsUiState(
     val modelLabel: String = "",
     val effort: String = "",
     val speakReplies: Boolean = true,
+    val longReplies: Boolean = false,
     val apiKeySuffix: String? = null,
 )
 
@@ -29,6 +30,7 @@ class SettingsViewModel(
                     modelLabel = SettingsRepository.modelLabel(it.model),
                     effort = it.effort,
                     speakReplies = it.speakReplies,
+                    longReplies = it.longReplies,
                     apiKeySuffix = it.apiKey.takeIf { key -> key.isNotBlank() }?.takeLast(4),
                 )
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), SettingsUiState())
@@ -42,6 +44,8 @@ class SettingsViewModel(
     fun cycleEffort() = settings.cycleEffort()
 
     fun setSpeakReplies(value: Boolean) = settings.setSpeakReplies(value)
+
+    fun setLongReplies(value: Boolean) = settings.setLongReplies(value)
 
     fun setApiKey(value: String) = settings.setApiKey(value)
 

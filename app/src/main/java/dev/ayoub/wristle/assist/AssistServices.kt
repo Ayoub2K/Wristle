@@ -26,7 +26,7 @@ class WristleSession(
         showFlags: Int,
     ) {
         super.onShow(args, showFlags)
-        startAssistantActivity(Intent(context, MainActivity::class.java))
+        startAssistantActivity(Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_LISTEN, true))
         hide()
     }
 }

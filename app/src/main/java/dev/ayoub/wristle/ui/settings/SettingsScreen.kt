@@ -29,6 +29,7 @@ fun SettingsScreen(
     onCycleModel: () -> Unit,
     onCycleEffort: () -> Unit,
     onSpeakChange: (Boolean) -> Unit,
+    onLongRepliesChange: (Boolean) -> Unit,
     onEditKey: () -> Unit,
     onDone: () -> Unit,
 ) {
@@ -62,6 +63,24 @@ fun SettingsScreen(
                     label = { Text(stringResource(R.string.settings_speak)) },
                     toggleControl = {
                         Icon(imageVector = ToggleChipDefaults.switchIcon(checked = state.speakReplies), contentDescription = null)
+                    },
+                )
+            }
+            item {
+                ToggleChip(
+                    modifier = Modifier.fillMaxWidth(),
+                    checked = state.longReplies,
+                    onCheckedChange = onLongRepliesChange,
+                    label = { Text(stringResource(R.string.settings_long_replies)) },
+                    secondaryLabel = {
+                        Text(
+                            stringResource(
+                                if (state.longReplies) R.string.settings_long_replies_on else R.string.settings_long_replies_off,
+                            ),
+                        )
+                    },
+                    toggleControl = {
+                        Icon(imageVector = ToggleChipDefaults.switchIcon(checked = state.longReplies), contentDescription = null)
                     },
                 )
             }

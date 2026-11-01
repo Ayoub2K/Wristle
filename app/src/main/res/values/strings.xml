@@ -16,6 +16,12 @@
     <string name="speech_error_audio">Microphone not available</string>
     <string name="speech_error_other">Speech recognition failed (code %1$d)</string>
 
+    <string name="home_chat">Chat</string>
+    <string name="home_code">Code</string>
+    <string name="code_coming_soon">Controlling your computer is coming in a later version.</string>
+    <string name="history_title">Past chats</string>
+    <string name="history_empty">No past chats yet</string>
+
     <string name="error_no_api_key">No API key set. Open settings.</string>
     <string name="error_unauthorized">Key rejected (401). Check the API key.</string>
     <string name="error_api">API error %1$s</string>
@@ -28,6 +34,9 @@
     <string name="settings_model">Model</string>
     <string name="settings_effort">Effort</string>
     <string name="settings_speak">Read replies aloud</string>
+    <string name="settings_long_replies">Longer replies</string>
+    <string name="settings_long_replies_on">Up to ~8 sentences</string>
+    <string name="settings_long_replies_off">1–3 sentences</string>
     <string name="settings_api_key">Claude API key</string>
     <string name="settings_api_key_missing">not set</string>
     <string name="settings_api_key_suffix">…%1$s</string>

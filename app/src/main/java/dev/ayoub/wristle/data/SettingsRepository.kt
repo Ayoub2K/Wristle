@@ -12,6 +12,7 @@ data class AppSettings(
     val model: String,
     val effort: String,
     val speakReplies: Boolean,
+    val longReplies: Boolean,
     val notificationPermissionAsked: Boolean,
 )
 
@@ -40,6 +41,8 @@ class SettingsRepository(
     fun cycleEffort() = update { putString(KEY_EFFORT, EFFORTS[(EFFORTS.indexOf(state.value.effort) + 1) % EFFORTS.size]) }
 
     fun setSpeakReplies(value: Boolean) = update { putBoolean(KEY_SPEAK, value) }
+
+    fun setLongReplies(value: Boolean) = update { putBoolean(KEY_LONG_REPLIES, value) }
 
     fun markNotificationPermissionAsked() = update { putBoolean(KEY_NOTIFICATION_ASKED, true) }
 
@@ -71,6 +74,7 @@ class SettingsRepository(
             model = prefs.getString(KEY_MODEL, null) ?: MODELS.first().id,
             effort = prefs.getString(KEY_EFFORT, null) ?: EFFORTS.first(),
             speakReplies = prefs.getBoolean(KEY_SPEAK, true),
+            longReplies = prefs.getBoolean(KEY_LONG_REPLIES, false),
             notificationPermissionAsked = prefs.getBoolean(KEY_NOTIFICATION_ASKED, false),
         )
 
@@ -79,6 +83,7 @@ class SettingsRepository(
         private const val KEY_MODEL = "model"
         private const val KEY_EFFORT = "effort"
         private const val KEY_SPEAK = "speak"
+        private const val KEY_LONG_REPLIES = "long_replies"
         private const val KEY_NOTIFICATION_ASKED = "notification_permission_asked"
 
         val MODELS =

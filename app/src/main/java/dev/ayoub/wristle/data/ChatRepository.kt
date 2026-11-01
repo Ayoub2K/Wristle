@@ -25,6 +25,9 @@ class ChatRepository(
     private val state = MutableStateFlow(store.load())
     val session: StateFlow<ChatSession> = state.asStateFlow()
 
+    private val historyState = MutableStateFlow(store.loadHistory())
+    val history: StateFlow<List<ChatSession>> = historyState.asStateFlow()
+
     private val diskWriter = Dispatchers.IO.limitedParallelism(1)
     private var job: Job? = null
     private var lastId = state.value.lastMessageId
@@ -32,7 +35,8 @@ class ChatRepository(
     fun send(text: String): Boolean {
         val current = state.value
         if (text.isBlank() || current.busy) return false
-        update(current.withUserMessage(++lastId, text.trim()))
+        val base = if (current.messages.isEmpty()) current.copy(startedAt = System.currentTimeMillis()) else current
+        update(base.withUserMessage(++lastId, text.trim()))
         startRequest()
         return true
     }
@@ -44,7 +48,32 @@ class ChatRepository(
     fun newChat() {
         job?.cancel()
         job = null
+        archive(state.value)
         update(ChatSession())
+    }
+
+    /** Makes a past chat current again; the chat that was open goes to the history. */
+    fun openFromHistory(index: Int) {
+        val chosen = historyState.value.getOrNull(index) ?: return
+        job?.cancel()
+        job = null
+        val rest = historyState.value.filterIndexed { i, _ -> i != index }
+        historyState.value = rest.withArchived(state.value)
+        persistHistory()
+        lastId = maxOf(lastId, chosen.lastMessageId)
+        update(chosen)
+    }
+
+    private fun archive(session: ChatSession) {
+        val updated = historyState.value.withArchived(session)
+        if (updated == historyState.value) return
+        historyState.value = updated
+        persistHistory()
+    }
+
+    private fun persistHistory() {
+        val snapshot = historyState.value
+        scope.launch(diskWriter) { store.saveHistory(snapshot) }
     }
 
     fun markSeen() {

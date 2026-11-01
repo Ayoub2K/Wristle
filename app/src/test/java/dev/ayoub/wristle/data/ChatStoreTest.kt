@@ -45,4 +45,21 @@ class ChatStoreTest {
 
         assertEquals(ChatSession(), store.load())
     }
+
+    @Test
+    fun roundTripsHistoryWithStartTimes() {
+        val history =
+            listOf(
+                ChatSession(startedAt = 2_000L).withUserMessage(3, "second").started(4).completed(4, "B"),
+                ChatSession(startedAt = 1_000L).withUserMessage(1, "first").started(2).completed(2, "A"),
+            )
+        store.saveHistory(history)
+
+        assertEquals(history, store.loadHistory())
+    }
+
+    @Test
+    fun missingHistoryLoadsEmpty() {
+        assertEquals(emptyList<ChatSession>(), store.loadHistory())
+    }
 }

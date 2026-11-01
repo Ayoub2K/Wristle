@@ -8,6 +8,7 @@ import java.io.IOException
 
 class ChatStore(
     private val file: File,
+    private val historyFile: File = File(file.parentFile, "history.json"),
 ) {
     fun load(): ChatSession =
         try {
@@ -16,14 +17,29 @@ class ChatStore(
             ChatSession()
         }
 
-    fun save(session: ChatSession): Boolean =
+    fun save(session: ChatSession): Boolean = write(file, encode(session))
+
+    fun loadHistory(): List<ChatSession> =
         try {
-            val tmp = File(file.parentFile, "${file.name}.tmp")
+            if (historyFile.exists()) jsonMapper().readTree(historyFile).map(::decode) else emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+
+    fun saveHistory(history: List<ChatSession>): Boolean =
+        write(historyFile, jsonMapper().createArrayNode().apply { history.forEach { add(encode(it)) } })
+
+    private fun write(
+        target: File,
+        json: JsonNode,
+    ): Boolean =
+        try {
+            val tmp = File(target.parentFile, "${target.name}.tmp")
             FileOutputStream(tmp).use { out ->
-                out.write(jsonMapper().writeValueAsBytes(encode(session)))
+                out.write(jsonMapper().writeValueAsBytes(json))
                 out.fd.sync()
             }
-            tmp.renameTo(file)
+            tmp.renameTo(target)
         } catch (e: IOException) {
             false
         }
@@ -32,6 +48,7 @@ class ChatStore(
         val root = jsonMapper().createObjectNode()
         root.put("status", session.status.name)
         root.put("seen", session.seen)
+        root.put("startedAt", session.startedAt)
         session.failure?.let { failure ->
             root.putObject("failure").put("reason", failure.reason.name).put("detail", failure.detail)
         }
@@ -60,5 +77,6 @@ class ChatStore(
                         ?.let { reason -> Failure(reason, it.get("detail")?.takeUnless { d -> d.isNull }?.asText()) }
                 },
             seen = root.path("seen").asBoolean(true),
+            startedAt = root.path("startedAt").asLong(0L),
         )
 }

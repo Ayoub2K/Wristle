@@ -30,6 +30,7 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.jvm.optionals.getOrNull
 
@@ -74,7 +75,8 @@ class ClaudeApiBackend(
         withContext(Dispatchers.IO) {
             val settings = settingsRepository.settings.value
             val model = SettingsRepository.MODELS.firstOrNull { it.id == settings.model }
-            val system = "$SYSTEM_PROMPT The current local time is ${LocalDateTime.now().format(NOW_FORMAT)}."
+            val length = if (settings.longReplies) LONG_REPLIES else SHORT_REPLIES
+            val system = "$SYSTEM_PROMPT $length The current local time is ${LocalDateTime.now().format(NOW_FORMAT)}."
             val builder =
                 MessageCreateParams
                     .builder()
@@ -164,10 +166,14 @@ class ClaudeApiBackend(
                 .build()
 
         const val SYSTEM_PROMPT =
-            "You are a voice assistant on a smartwatch. Keep answers short, usually 1–3 sentences, " +
-                "with no markdown, links, lists or tables: the reply is read aloud and shown on a small round screen. " +
-                "Answer in the user's language. For recent events, weather, prices or other current data, use web search."
+            "You are a voice assistant on a smartwatch. Use no markdown, links, lists or tables: " +
+                "the reply is read aloud and shown on a small round screen. " +
+                "Answer in the language of the user's latest message. For recent events, weather, prices or other current data, use web search."
+        const val SHORT_REPLIES = "Keep answers short, usually 1–3 sentences."
+        const val LONG_REPLIES = "Give complete answers in plain spoken sentences, up to about 8 sentences when needed."
 
-        val NOW_FORMAT: DateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.FULL, FormatStyle.SHORT)
+        // English on purpose: a date in the watch language made Claude reply in that language to English questions.
+        val NOW_FORMAT: DateTimeFormatter =
+            DateTimeFormatter.ofLocalizedDateTime(FormatStyle.FULL, FormatStyle.SHORT).withLocale(Locale.ENGLISH)
     }
 }

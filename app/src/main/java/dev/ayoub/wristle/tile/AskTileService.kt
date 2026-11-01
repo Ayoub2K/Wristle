@@ -62,6 +62,7 @@ class AskTileService : TileService() {
                                 .Builder()
                                 .setPackageName(packageName)
                                 .setClassName(MainActivity::class.java.name)
+                                .addKeyToExtraMapping(MainActivity.EXTRA_LISTEN, ActionBuilders.booleanExtra(true))
                                 .build(),
                         ).build(),
                 ).build()

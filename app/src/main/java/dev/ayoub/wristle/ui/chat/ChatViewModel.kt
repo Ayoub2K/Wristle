@@ -11,6 +11,7 @@ import dev.ayoub.wristle.data.ChatRepository
 import dev.ayoub.wristle.data.Failure
 import dev.ayoub.wristle.data.SettingsRepository
 import dev.ayoub.wristle.data.TurnStatus
+import dev.ayoub.wristle.ui.history.HistoryItem
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +21,8 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import java.text.DateFormat
+import java.util.Date
 
 data class ChatUiState(
     val header: String = "",
@@ -65,6 +68,23 @@ class ChatViewModel(
 
     val busy: Flow<Boolean> = chat.session.map { it.busy }.distinctUntilChanged()
 
+    val history: StateFlow<List<HistoryItem>> =
+        chat.history
+            .map { chats ->
+                chats.map { session ->
+                    HistoryItem(
+                        title =
+                            session.messages
+                                .firstOrNull { it.fromUser }
+                                ?.text
+                                .orEmpty(),
+                        date = if (session.startedAt > 0) DATE_FORMAT.format(Date(session.startedAt)) else "",
+                    )
+                }
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
+
+    fun openFromHistory(index: Int) = chat.openFromHistory(index)
+
     val shouldStartFreshChat: Boolean get() = chat.session.value.shouldStartFreshChat
 
     fun send(text: String) = chat.send(text)
@@ -77,6 +97,7 @@ class ChatViewModel(
 
     companion object {
         private const val STOP_TIMEOUT_MS = 5_000L
+        private val DATE_FORMAT: DateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
 
         fun factory(container: AppContainer): ViewModelProvider.Factory =
             viewModelFactory {

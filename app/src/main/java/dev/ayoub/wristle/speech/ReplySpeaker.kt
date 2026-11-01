@@ -1,10 +1,11 @@
-package dev.ayoub.wristle.ui
+package dev.ayoub.wristle.speech
 
 import android.content.Context
 import android.media.AudioManager
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.widget.Toast
+import androidx.core.content.edit
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import dev.ayoub.wristle.R
@@ -28,8 +29,9 @@ class ReplySpeaker(
     private val speakingState = MutableStateFlow(false)
     val speaking: StateFlow<Boolean> = speakingState.asStateFlow()
 
-    // Null means the system default engine; set once the default turns out not to speak the device language.
-    private var engineName: String? = null
+    // Null means the system default engine; set (and remembered) once the default turns out not to speak the device language.
+    private val prefs = appContext.getSharedPreferences("tts", Context.MODE_PRIVATE)
+    private var engineName: String? = prefs.getString(KEY_ENGINE, null)
 
     private var replyId: Long? = null
     private var spokenUpTo = 0
@@ -108,6 +110,7 @@ class ReplySpeaker(
             val waiting = pending.toList()
             release()
             engineName = GOOGLE_ENGINE
+            prefs.edit { putString(KEY_ENGINE, GOOGLE_ENGINE) }
             pending += waiting
             connect()
             return
@@ -147,6 +150,7 @@ class ReplySpeaker(
 
     private companion object {
         const val GOOGLE_ENGINE = "com.google.android.tts"
+        const val KEY_ENGINE = "engine"
         val MARKUP = Regex("[*_#`>]")
     }
 }

@@ -38,7 +38,7 @@ These repositories are named here for your context only. **Do not mention them a
 
 ## Branding
 
-The repo is public. Do not use Anthropic's name or logo: no "Claude" as the app name, no Claude logo or look-alike icons. "Claude" may appear only to describe which API is used (e.g. "Claude API key", `ClaudeRemoteDataSource`). The README carries an "unofficial, not affiliated" disclaimer.
+The repo is public. Do not use Anthropic's name or logo: no "Claude" as the app name, no Claude logo or look-alike icons. "Claude" may appear only to describe which API is used (e.g. "Claude API key", `ClaudeApiBackend`). The README carries an "unofficial, not affiliated" disclaimer.
 
 The owner chose to use Claude's terracotta (`#D97757`) as the accent colour (`ui/Colors.kt`, launcher icon). Keep it.
 
@@ -64,10 +64,13 @@ Package `dev.ayoub.wristle` under `app/src/main/java/`:
 | `MainActivity.kt` | Entry point; decides between reopening the chat and starting a new one; launches speech input |
 | `KeySetupActivity.kt` | Receives the API key via `adb shell` only (guarded by `WRITE_SECURE_SETTINGS`) |
 | `AppContainer.kt` | Manual dependency injection; wire new implementations here |
-| `data/` | `ChatRepository`, `ChatSession`, `ChatStore`, `ClaudeRemoteDataSource`, `SettingsRepository`, `SecretCipher` |
+| `chat/` | `ChatBackend` interface; `ClaudeApiBackend` (Anthropic Java SDK) and `StreamAccumulator`. Phase 2 adds a second backend here |
+| `data/` | `ChatRepository` (depends only on `ChatBackend`), `ChatSession`, `ChatStore`, `SettingsRepository`, `SecretCipher` |
+| `speech/` | `SystemSpeechInput` (watch recognizer), `ReplySpeaker` (TTS, sentence by sentence) |
 | `service/` | Foreground service while a request runs |
-| `ui/` | Compose for Wear OS screens, view models, TTS (`ReplySpeaker`) |
+| `ui/` | Compose for Wear OS screens and view models |
 | `assist/` | Voice interaction service so the app can be the digital assistant |
+| `tile/` | Wear tile with a mic button that opens the app into listening |
 
 ## Conventions
 

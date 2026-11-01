@@ -1,4 +1,4 @@
-package dev.ayoub.wristle.data
+package dev.ayoub.wristle.chat
 
 import com.anthropic.core.JsonValue
 import com.anthropic.core.jsonMapper

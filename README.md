@@ -8,7 +8,8 @@ Roadmap and milestone status: [docs/phase-1-plan.md](docs/phase-1-plan.md).
 
 ## Features
 
-- Opens straight into listening; the reply streams to the screen and is spoken via the system TTS.
+- Opens straight into listening; the reply streams to the screen and is read aloud sentence by sentence.
+- Start it from the Home key (as digital assistant), a tile, or the app list.
 - Relaunching while a reply is in progress (or unseen) reopens the same chat instead of starting a new one.
 - Model and effort selectable in settings (Opus 5.5 / Sonnet 5.5 / Haiku 5.5; effort low…max). Default: Opus 5.5 · low.
 - Web search via the Claude API's server-side tool.
@@ -54,17 +55,20 @@ Release builds are signed with the key from `keystore.properties` (git-ignored, 
 
    `KeySetupActivity` is protected by `WRITE_SECURE_SETTINGS`, which normal apps can't hold, so only `adb shell` can start it. You can also enter the key on the watch itself: without a key the app opens the system text input on launch, and you can change it later under ⚙ → Claude API key.
 
-## Launching from the side button
+## Launching Wristle
 
-**Not yet verified on the Galaxy Watch 4.** The app registers as a `VoiceInteractionService` so it can be picked as the digital assistant. On stock Wear OS: **Settings → Apps → Default apps → Digital assistant → Wristle**.
+Verified on a Galaxy Watch 4 with One UI Watch 8.
 
-Fallback via adb:
-```bash
-adb shell settings put secure assistant dev.ayoub.wristle/.assist.WristleVoiceInteractionService
-adb shell settings put secure voice_interaction_service dev.ayoub.wristle/.assist.WristleVoiceInteractionService
-```
+**Home key (press and hold)**
+1. **Settings → Apps → Default apps → Digital assistant app → Wristle** (menu names vary slightly per One UI Watch version).
+2. **Settings → Advanced features → Customize keys → Home key → Press and hold →** the digital assistant option.
 
-While the app is the active assistant, system speech recognition for *other* apps may stop working (the app's `RecognitionService` is a stub). Investigating this on the Watch 4 is milestone 2.
+Pressing and holding the Home key now opens Wristle, which starts listening right away. Speech recognition for other apps keeps working.
+
+**Tile**
+Swipe left from the watch face to the end, tap **+ Add tile** and choose **Wristle**. Its mic button opens the app into listening.
+
+The app list always works too.
 
 ## Project layout
 
@@ -75,11 +79,14 @@ While the app is the active assistant, system speech recognition for *other* app
 | `AppContainer.kt`, `WristleApplication.kt` | Manual DI: repositories and the app-wide scope |
 | `data/ChatRepository.kt` | Request lifecycle, chat state, retry, persistence |
 | `data/ChatSession.kt`, `data/ChatStore.kt` | Chat model, stored in `noBackupFilesDir` |
-| `data/ClaudeRemoteDataSource.kt` | Anthropic Java SDK: cancellable streaming, timeouts, web search |
+| `chat/ChatBackend.kt` | Interface for where replies come from |
+| `chat/ClaudeApiBackend.kt` | Anthropic Java SDK: cancellable streaming, timeouts, web search, error mapping |
 | `data/SettingsRepository.kt`, `data/SecretCipher.kt` | Settings; secrets encrypted with an Android Keystore key |
 | `service/ChatRequestService.kt` | Foreground service + Ongoing Activity while a request runs |
-| `ui/` | Compose for Wear OS: swipe-to-dismiss navigation, chat and settings screens, TTS |
+| `speech/` | Speech input via the watch recognizer; read-aloud via TTS |
+| `ui/` | Compose for Wear OS: swipe-to-dismiss navigation, chat and settings screens |
 | `assist/AssistServices.kt` | Voice interaction service so the watch can treat the app as its assistant |
+| `tile/AskTileService.kt` | Tile with a mic button that opens the app into listening |
 
 ## Known limitations
 

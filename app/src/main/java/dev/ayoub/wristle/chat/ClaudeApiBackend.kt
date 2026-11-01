@@ -1,22 +1,31 @@
-package dev.ayoub.wristle.data
+package dev.ayoub.wristle.chat
 
 import com.anthropic.client.AnthropicClient
 import com.anthropic.client.okhttp.AnthropicOkHttpClient
 import com.anthropic.core.JsonValue
 import com.anthropic.core.Timeout
 import com.anthropic.core.http.StreamResponse
+import com.anthropic.errors.AnthropicIoException
+import com.anthropic.errors.AnthropicServiceException
+import com.anthropic.errors.UnauthorizedException
 import com.anthropic.models.messages.Message
 import com.anthropic.models.messages.MessageCreateParams
 import com.anthropic.models.messages.OutputConfig
 import com.anthropic.models.messages.RawMessageStreamEvent
 import com.anthropic.models.messages.StopReason
 import com.anthropic.models.messages.WebSearchTool20250305
+import dev.ayoub.wristle.data.ChatMessage
+import dev.ayoub.wristle.data.Failure
+import dev.ayoub.wristle.data.FailureReason
+import dev.ayoub.wristle.data.SettingsRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -24,16 +33,46 @@ import java.time.format.FormatStyle
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.jvm.optionals.getOrNull
 
-class ClaudeRemoteDataSource {
+/** Talks to the Claude API directly with the API key stored on the watch. */
+class ClaudeApiBackend(
+    private val settingsRepository: SettingsRepository,
+) : ChatBackend {
     private var client: AnthropicClient? = null
     private var clientKey: String? = null
 
-    suspend fun stream(
-        settings: AppSettings,
+    override fun unavailable(): Failure? =
+        if (settingsRepository.settings.value.apiKey
+                .isBlank()
+        ) {
+            Failure(FailureReason.NO_API_KEY)
+        } else {
+            null
+        }
+
+    override suspend fun reply(
+        history: List<ChatMessage>,
+        onDelta: (String) -> Unit,
+    ): String =
+        try {
+            stream(history, onDelta)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: UnauthorizedException) {
+            throw ChatBackendException(Failure(FailureReason.UNAUTHORIZED), e)
+        } catch (e: AnthropicServiceException) {
+            throw ChatBackendException(Failure(FailureReason.API, "${e.statusCode()}: ${e.message}"), e)
+        } catch (e: AnthropicIoException) {
+            throw ChatBackendException(Failure(FailureReason.NETWORK, e.message), e)
+        } catch (e: IOException) {
+            throw ChatBackendException(Failure(FailureReason.NETWORK, e.message), e)
+        }
+
+    private suspend fun stream(
         history: List<ChatMessage>,
         onDelta: (String) -> Unit,
     ): String =
         withContext(Dispatchers.IO) {
+            val settings = settingsRepository.settings.value
             val model = SettingsRepository.MODELS.firstOrNull { it.id == settings.model }
             val system = "$SYSTEM_PROMPT The current local time is ${LocalDateTime.now().format(NOW_FORMAT)}."
             val builder =

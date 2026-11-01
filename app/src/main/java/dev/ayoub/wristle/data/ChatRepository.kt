@@ -1,8 +1,7 @@
 package dev.ayoub.wristle.data
 
-import com.anthropic.errors.AnthropicIoException
-import com.anthropic.errors.AnthropicServiceException
-import com.anthropic.errors.UnauthorizedException
+import dev.ayoub.wristle.chat.ChatBackend
+import dev.ayoub.wristle.chat.ChatBackendException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,12 +15,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import java.io.IOException
 
 class ChatRepository(
-    private val settings: SettingsRepository,
     private val store: ChatStore,
-    private val remote: ClaudeRemoteDataSource,
+    private val backend: ChatBackend,
     private val scope: CoroutineScope,
     private val onRequestStarted: () -> Unit,
 ) {
@@ -59,10 +56,8 @@ class ChatRepository(
         val current = state.value
         val history = current.historyForRequest()
         val replyId = ++lastId
-        if (settings.settings.value.apiKey
-                .isBlank()
-        ) {
-            update(current.started(replyId).failed(replyId, Failure(FailureReason.NO_API_KEY)))
+        backend.unavailable()?.let { failure ->
+            update(current.started(replyId).failed(replyId, failure))
             return
         }
         update(current.started(replyId))
@@ -82,8 +77,7 @@ class ChatRepository(
                 try {
                     val reply =
                         withTimeout(REQUEST_TIMEOUT_MS) {
-                            remote.stream(
-                                settings = settings.settings.value,
+                            backend.reply(
                                 history = history,
                                 onDelta = { delta ->
                                     synchronized(buffer) { buffer.append(delta) }
@@ -101,14 +95,8 @@ class ChatRepository(
                     finish { it.failed(replyId, Failure(FailureReason.TIMEOUT)) }
                 } catch (e: CancellationException) {
                     throw e
-                } catch (e: UnauthorizedException) {
-                    finish { it.failed(replyId, Failure(FailureReason.UNAUTHORIZED)) }
-                } catch (e: AnthropicServiceException) {
-                    finish { it.failed(replyId, Failure(FailureReason.API, "${e.statusCode()}: ${e.message}")) }
-                } catch (e: AnthropicIoException) {
-                    finish { it.failed(replyId, Failure(FailureReason.NETWORK, e.message)) }
-                } catch (e: IOException) {
-                    finish { it.failed(replyId, Failure(FailureReason.NETWORK, e.message)) }
+                } catch (e: ChatBackendException) {
+                    finish { it.failed(replyId, e.failure) }
                 } catch (e: Exception) {
                     finish { it.failed(replyId, Failure(FailureReason.NETWORK, e.message ?: e.javaClass.simpleName)) }
                 } finally {

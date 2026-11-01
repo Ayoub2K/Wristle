@@ -20,23 +20,26 @@ Phase 2 (remote control of a computer) is **out of scope** here. Phase 1 must on
 |---|---|
 | Galaxy Watch 4 launched with Wear OS 3 (API 30); app `minSdk` is 30 | Known |
 | Owner's watch: SM-R870 (Watch 4, 44 mm, Bluetooth/Wi-Fi), Android 16 / **API 36** (Wear OS 6), One UI Watch 8 (`ro.build.version.oneui=80000`), build `R870XXS2JZG3`, locale nl-NL. Matches `targetSdk` 36 | Verified via adb (2026-11-01) |
-| `ACTION_RECOGNIZE_SPEECH` is handled by **two** activities: Google `com.google.android.tts` (GoogleTTSActivity) and Samsung Keyboard `com.samsung.android.honeyboard` (RemoteInputActivity). Which one opens, or whether a chooser appears, is untested | Verified via adb; behaviour: M2 |
+| `ACTION_RECOGNIZE_SPEECH` is handled by **two** activities: Google `com.google.android.tts` (GoogleTTSActivity) and Samsung Keyboard `com.samsung.android.honeyboard` (RemoteInputActivity). In practice Google's opens, without a chooser, and recognises Dutch well | Verified on the watch (M2) |
 | `RecognitionService`: only Google's (`com.google.android.tts/…GoogleTTSRecognitionService`), and it is the selected `voice_recognition_service` | Verified via adb, before installing Wristle |
 | Current digital assistant: `com.google.android.wearable.assistant`; `voice_interaction_service` is empty | Verified via adb |
-| TTS engines installed: Samsung (`com.samsung.SMT`) and Google (`com.google.android.tts`); no default set in secure settings | Verified via adb |
-| Whether a third-party app can be picked as digital assistant on One UI Watch | **Unverified**: M4 |
-| Whether "double press Home key → open app" can open any app | **Unverified**: M4 |
-| Microphone quality is weaker than on newer watches | Reported by the owner; measure in M2 |
-| The Claude API does not accept audio input (no speech-to-text) | **To verify** against current API docs before the M2 decision |
+| TTS engines installed: Samsung (`com.samsung.SMT`, the default) and Google (`com.google.android.tts`). Samsung's has **no Dutch voice** (`nld-NLD is LANG_NOT_SUPPORTED`) and stays silent; Google's speaks Dutch | Verified via adb and on the watch (M2) |
+| Media volume (`STREAM_MUSIC`, which TTS uses) was 0 out of the box | Verified via adb |
+| A third-party app **can** be the digital assistant on One UI Watch 8: Wristle holds `android.app.role.ASSISTANT` | Verified (M4) |
+| Home key "press and hold" set to the digital assistant is stored as `setting_home_key_long_press=googlevoiceassistant/googlevoiceassistant` and opens Wristle | Verified (M4) |
+| With Wristle as assistant, `voice_recognition_service` stays Google's; the stub `RecognitionService` does **not** replace it | Verified via adb (M4) |
+| "Double press Home key" stores an arbitrary activity (`setting_home_key_double_press=<package>/<activity>`, currently Google Wallet) | Seen via adb; not used |
+| Microphone quality | No problems for the owner in normal use |
 
-## Current state (after M1)
+## Current state (after M4)
 
 What the app does today:
 
-- Compose for Wear OS UI, streaming via the Anthropic Java SDK, server-side web search.
-- Speech input: `RecognizerIntent.ACTION_RECOGNIZE_SPEECH` launched from `MainActivity`. If no recognizer activity exists, it **fails silently**.
-- Speech output: system `TextToSpeech` (`ui/ReplySpeaker.kt`).
-- The app registers a `VoiceInteractionService` plus a **stub `RecognitionService`** that always returns an error. While the app is the active assistant, this may break system speech recognition. That is a suspected cause of "no selected voice recognition service".
+- Compose for Wear OS UI with chat bubbles and a large mic button; streaming via the Anthropic Java SDK, server-side web search.
+- Speech input: `RecognizerIntent.ACTION_RECOGNIZE_SPEECH` launched from `MainActivity` (Google's recognizer on the Watch 4). Failures show a short message.
+- Speech output: system `TextToSpeech` (`ui/ReplySpeaker.kt`), read sentence by sentence while the reply streams. Falls back to Google's engine when the default can't speak the device language, and remembers that choice. The screen stays on while a reply streams or is spoken.
+- Launch: Home key press and hold (Wristle as digital assistant), a **Wristle tile**, or the app list.
+- The app registers a `VoiceInteractionService` plus a stub `RecognitionService`; on the Watch 4 this does not affect system speech recognition (see device facts).
 - The API key is stored AES-GCM-encrypted with a key held in the Android Keystore (`data/SecretCipher.kt`). This is what EncryptedSharedPreferences does internally, and that library is deprecated, so we keep this approach.
 - The key is set via `adb` (`setup-key.ps1` / `setup-key.sh`) or typed on the watch.
 
@@ -51,73 +54,34 @@ What the app does today:
 
 **Done when:** the release APK installs on the Watch 4, the key can be set, and a question (spoken, or typed via the debug `--es prompt` hook) gets a streamed and spoken reply.
 
-### M2: Speech input diagnosis
+### M2: Speech input ✅ (verified on the watch, 2026-11-01)
 
-Goal: know exactly why and when speech fails on the Watch 4 before choosing a fix.
+The system recognizer (Google's, via `RecognizerIntent`) works well on the Watch 4, including Dutch, so **no external speech-to-text is needed**. The STT options (cloud STT, on-device model, STT behind a proxy) are dropped unless recognition quality becomes a problem.
 
-- Show a visible error instead of failing silently (no recognizer found, recognizer error, empty result).
-- Add a small diagnostics screen in settings (debug builds) that shows:
-  - the Wear OS / SDK version;
-  - the activities that handle `ACTION_RECOGNIZE_SPEECH`;
-  - `SpeechRecognizer.isRecognitionAvailable()` and, on API 31+, `isOnDeviceRecognitionAvailable()`;
-  - the current `assistant` / `voice_interaction_service` secure settings;
-  - TTS engine and available voices for nl-NL and en-US.
-- Test matrix on the watch: app as assistant vs. not, Dutch vs. English, quiet vs. noisy room.
-- Verify against the API docs that the Claude API has no speech-to-text.
-- Write the findings and the STT options (below) to `docs/stt-decision.md`.
+- Speech failures show a message instead of failing silently: no recognizer, no match, no connection, microphone error. Swiping the recognizer away is treated as a cancel.
+- Read-aloud fixed: Google TTS fallback for Dutch (remembered), sentence-by-sentence reading while streaming, screen kept on while answering or speaking, a warning when media volume is 0.
 
-**Done when:** the owner has the findings and picks an STT option.
+### M3: Reliable speech input (dropped)
 
-#### STT options to present in M2
+Not needed after M2: the system recognizer is reliable. Moving speech handling into `speech/` behind a `SpeechInput` interface is done as part of M5's architecture work instead.
 
-| Option | Pros | Cons |
-|---|---|---|
-| **A. System recognizer** (current `RecognizerIntent`, or `SpeechRecognizer` bound to a specific service) | Free, no extra key, low latency, no audio leaves the watch except via the recognizer vendor | Depends on what Samsung/Google installed; may be missing or broken on the Watch 4; little control over language and timeouts |
-| **B. Record audio + cloud STT API** (the watch records with `AudioRecord` and sends it to an STT service, then the text goes to Claude) | Works independently of installed recognizers; good accuracy for Dutch with a strong model; full control over UX | Second API key on the watch (or a proxy, see M5); costs per minute; extra latency; audio leaves the device; needs `RECORD_AUDIO` |
-| **C. On-device model** (e.g. a small Whisper or Vosk model) | Offline and private, no extra cost | Heavy for a watch CPU and RAM: likely slow and battery-hungry; large APK; quality for Dutch is uncertain. Feasibility unverified |
-| **D. STT behind our own proxy** (B, but the proxy calls the STT service) | No STT key on the watch; can be combined with the Claude proxy | Requires running a server (see M5) |
+### M4: Fast launch ✅ (verified on the watch, 2026-11-01)
 
-Which STT providers to compare (accuracy for Dutch, price, latency) is part of M2's research, not decided here.
+- Wristle can be the digital assistant on One UI Watch 8; Home key press and hold then opens it straight into listening.
+- A **Wristle tile** with one large mic button opens the app into listening (`tile/AskTileService.kt`, Wear Tiles + ProtoLayout).
+- The README documents both setups.
 
-### M3: Reliable speech input
+### M5: Backend seam and key handling ✅ (code done, 2026-11-01)
 
-Implement the option chosen in M2 behind a `SpeechInput` interface (see [Architecture target](#architecture-target)).
+**Decision (owner, 2026-11-01): the API key stays on the watch**, Keystore-encrypted, for now. Option considered and not chosen yet: a small own proxy (e.g. a serverless function) that holds the key while the watch uses its own revocable token. Pros: the real key never touches the watch, spending limits and logging in one place. Cons: a server to deploy and secure, a little extra latency. Revisit if phase 2 needs a server or relay anyway.
 
-- Move speech handling out of `MainActivity` into `speech/`.
-- Clear listening states on screen (listening, processing, error with retry).
-- If audio recording is chosen: permission flow, max duration, silence detection or tap-to-stop, haptic feedback at start and end.
-- Language handling: follow the device locale, with a setting to force nl-NL or en-US.
-- Keep the system recognizer as a fallback if it works.
+- `chat/ChatBackend` interface: `unavailable()` and `reply(history, onDelta)`; failures are thrown as `ChatBackendException` carrying a backend-neutral `Failure`.
+- `chat/ClaudeApiBackend` implements it with the Anthropic Java SDK and maps SDK errors to `Failure`. `chat/StreamAccumulator` moved along.
+- `ChatRepository` depends only on `ChatBackend`; the backend is wired in `AppContainer`.
+- Speech moved to `speech/`: `SystemSpeechInput` (recognizer launch and error messages) and `ReplySpeaker` (TTS).
+- No configurable base URL: not needed while there is no proxy.
 
-**Done when:** ten spoken questions in a row work on the watch, in Dutch and in English, without falling back to typing.
-
-### M4: Fast launch
-
-- Test whether Wristle can be selected as digital assistant on One UI Watch, and whether long-pressing the side button then opens it.
-- Check whether the stub `RecognitionService` is still needed. If being the assistant breaks speech for other apps, decide with the owner whether assistant mode is worth it.
-- Alternatives, in order of preference, depending on what works:
-  1. Samsung "double press Home key" → open Wristle (system setting, no code);
-  2. a **Tile** with a single "Ask" button that opens straight into listening;
-  3. a **complication** that launches the app from the watch face;
-  4. the app list (always works).
-- Document the working setup in the README.
-
-**Done when:** Wristle starts listening within two actions from the watch face, and the README explains how.
-
-### M5: Backend seam and key handling
-
-- Introduce a `ChatBackend` interface; `ClaudeApiBackend` wraps the current `ClaudeRemoteDataSource`. `ChatRepository` only depends on the interface.
-- Make the API base URL configurable, so the same backend can talk to the Claude API directly or to a proxy.
-- Present the proxy decision to the owner:
-
-| Option | Pros | Cons |
-|---|---|---|
-| **Key on the watch** (current, Keystore-encrypted) | Simplest, no server, lowest latency | Anyone with physical access plus adb or a rooted watch could try to extract it; rotating the key means re-sending it |
-| **Small own proxy** (e.g. a serverless function) holding the Claude key (and STT key); the watch authenticates with its own revocable token | The real key never touches the watch; can add spending limits, logging and STT in one place; easy to revoke one device | A server to deploy and keep running; a little extra latency; the proxy must be secured (token auth, HTTPS, rate limits) |
-
-- Implement the chosen option.
-
-**Done when:** the app works with the chosen key setup, and a second backend can be added by implementing `ChatBackend` without changing UI or speech code.
+**Done when:** the app behaves the same on the watch, and a second backend can be added by implementing `ChatBackend` without changing UI or speech code.
 
 ### M6: Daily-use polish (optional, decide after M5)
 
@@ -134,15 +98,16 @@ Candidates, to prioritise with the owner after real use:
 The goal is clear seams, so the phase 2 computer bridge fits in without a rewrite.
 
 ```
-ui/            Compose screens, view models. Knows only the interfaces below.
-speech/        SpeechInput  - suspend fun listen(language): SpeechResult
-               SpeechOutput - speak(text), stop()          (TTS, current ReplySpeaker)
-chat/          ChatBackend  - suspend fun stream(history, onDelta): String
-               ClaudeApiBackend (direct API or via proxy)
+ui/            Compose screens, view models.
+speech/        SystemSpeechInput - listen() via the watch's recognizer, with error messages
+               ReplySpeaker      - reads a streaming reply aloud sentence by sentence (TTS)
+chat/          ChatBackend       - unavailable(), suspend fun reply(history, onDelta): String
+               ClaudeApiBackend  - Claude API with the key on the watch
                (phase 2: BridgeBackend talking to the computer bridge)
 data/          ChatRepository (state, persistence), SettingsRepository, SecretCipher
 service/       Foreground service while a request runs
-assist/        Voice interaction / launch entry points
+assist/        Voice interaction service (Home key launch)
+tile/          Tile with a mic button
 ```
 
 Rules:

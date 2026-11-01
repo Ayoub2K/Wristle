@@ -10,6 +10,12 @@
     <string name="chat_open_settings">Settings</string>
     <string name="speech_prompt">Ask Wristle</string>
 
+    <string name="speech_error_unavailable">No speech recognizer found on this watch</string>
+    <string name="speech_error_no_match">Didn\'t catch that. Try again.</string>
+    <string name="speech_error_network">Speech recognition has no connection</string>
+    <string name="speech_error_audio">Microphone not available</string>
+    <string name="speech_error_other">Speech recognition failed (code %1$d)</string>
+
     <string name="error_no_api_key">No API key set. Open settings.</string>
     <string name="error_unauthorized">Key rejected (401). Check the API key.</string>
     <string name="error_api">API error %1$s</string>

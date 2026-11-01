@@ -1,4 +1,4 @@
-package dev.ayoub.wristle.ui
+package dev.ayoub.wristle.speech
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

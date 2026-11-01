@@ -8,6 +8,12 @@
     <string name="chat_open_settings">Instellingen</string>
     <string name="speech_prompt">Vraag het Wristle</string>
 
+    <string name="speech_error_unavailable">Geen spraakherkenning gevonden op dit horloge</string>
+    <string name="speech_error_no_match">Niet verstaan. Probeer het opnieuw.</string>
+    <string name="speech_error_network">Spraakherkenning heeft geen verbinding</string>
+    <string name="speech_error_audio">Microfoon niet beschikbaar</string>
+    <string name="speech_error_other">Spraakherkenning mislukt (code %1$d)</string>
+
     <string name="error_no_api_key">Geen API-key ingesteld. Open de instellingen.</string>
     <string name="error_unauthorized">Key geweigerd (401). Controleer de API-key.</string>
     <string name="error_api">API-fout %1$s</string>

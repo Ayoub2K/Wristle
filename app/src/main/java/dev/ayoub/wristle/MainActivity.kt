@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.speech.RecognizerIntent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,9 +20,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.wear.input.RemoteInputIntentHelper
+import dev.ayoub.wristle.speech.ReplySpeaker
+import dev.ayoub.wristle.speech.SystemSpeechInput
 import dev.ayoub.wristle.ui.Destination
 import dev.ayoub.wristle.ui.NavigationRequest
-import dev.ayoub.wristle.ui.ReplySpeaker
 import dev.ayoub.wristle.ui.WristleApp
 import dev.ayoub.wristle.ui.chat.ChatViewModel
 import dev.ayoub.wristle.ui.settings.SettingsViewModel
@@ -37,11 +37,7 @@ class MainActivity : ComponentActivity() {
     private val speaker by lazy { ReplySpeaker(this) }
     private var navigationRequest by mutableStateOf<NavigationRequest?>(null)
 
-    private val speechLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-            if (!text.isNullOrBlank()) chatViewModel.send(text)
-        }
+    private val speechInput = SystemSpeechInput(this) { chatViewModel.send(it) }
 
     private val keyInputLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -127,15 +123,7 @@ class MainActivity : ComponentActivity() {
 
     private fun listen() {
         speaker.stop()
-        val intent =
-            Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                .putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.speech_prompt))
-        try {
-            speechLauncher.launch(intent)
-        } catch (e: ActivityNotFoundException) {
-            return
-        }
+        speechInput.listen()
     }
 
     private fun editApiKey() {

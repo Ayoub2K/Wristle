@@ -10,11 +10,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -30,9 +27,6 @@ class ChatRepository(
 ) {
     private val state = MutableStateFlow(store.load())
     val session: StateFlow<ChatSession> = state.asStateFlow()
-
-    private val replies = MutableSharedFlow<String>(extraBufferCapacity = 1)
-    val completedReplies: SharedFlow<String> = replies.asSharedFlow()
 
     private val diskWriter = Dispatchers.IO.limitedParallelism(1)
     private var job: Job? = null
@@ -102,7 +96,6 @@ class ChatRepository(
                         finish { it.failed(replyId, Failure(FailureReason.EMPTY_REPLY)) }
                     } else {
                         finish { it.completed(replyId, reply) }
-                        replies.tryEmit(reply)
                     }
                 } catch (e: TimeoutCancellationException) {
                     finish { it.failed(replyId, Failure(FailureReason.TIMEOUT)) }

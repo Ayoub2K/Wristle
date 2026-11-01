@@ -10,11 +10,15 @@ import dev.ayoub.wristle.data.ChatMessage
 import dev.ayoub.wristle.data.ChatRepository
 import dev.ayoub.wristle.data.Failure
 import dev.ayoub.wristle.data.SettingsRepository
+import dev.ayoub.wristle.data.TurnStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 data class ChatUiState(
@@ -26,6 +30,12 @@ data class ChatUiState(
 ) {
     val waitingForFirstWord: Boolean get() = busy && messages.lastOrNull()?.let { !it.fromUser && it.text.isEmpty() } == true
 }
+
+data class ReplyProgress(
+    val id: Long,
+    val text: String,
+    val done: Boolean,
+)
 
 class ChatViewModel(
     private val chat: ChatRepository,
@@ -42,7 +52,18 @@ class ChatViewModel(
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), ChatUiState())
 
-    val repliesToSpeak: Flow<String> = chat.completedReplies.filter { settings.settings.value.speakReplies }
+    /** The reply being written, for reading it aloud while it streams. */
+    val replyProgress: Flow<ReplyProgress> =
+        chat.session
+            .map { session ->
+                session.messages.lastOrNull()?.takeIf { !it.fromUser }?.let {
+                    ReplyProgress(it.id, it.text, done = session.status != TurnStatus.PENDING)
+                }
+            }.filterNotNull()
+            .filter { settings.settings.value.speakReplies }
+            .distinctUntilChanged()
+
+    val busy: Flow<Boolean> = chat.session.map { it.busy }.distinctUntilChanged()
 
     val shouldStartFreshChat: Boolean get() = chat.session.value.shouldStartFreshChat
 

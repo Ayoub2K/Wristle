@@ -47,6 +47,7 @@ Release builds are signed with the key from `keystore.properties` (git-ignored, 
    adb connect <ip>:<debug-port>
    adb install -r app/build/outputs/apk/release/app-release.apk
    ```
+   The pairing port and the debug port are different. If `adb pair` fails with `protocol fault`, you most likely used the debug port: `adb mdns services` lists both (`_adb-tls-pairing` and `_adb-tls-connect`).
 4. Send the API key (once, and again after changing the key or clearing app data):
    - Windows (PowerShell): `.\setup-key.ps1`
    - macOS / Linux / Git Bash: `./setup-key.sh`

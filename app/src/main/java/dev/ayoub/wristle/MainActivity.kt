@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.speech.RecognizerIntent
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,6 +27,7 @@ import dev.ayoub.wristle.ui.ReplySpeaker
 import dev.ayoub.wristle.ui.WristleApp
 import dev.ayoub.wristle.ui.chat.ChatViewModel
 import dev.ayoub.wristle.ui.settings.SettingsViewModel
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -59,7 +61,17 @@ class MainActivity : ComponentActivity() {
         lifecycle.addObserver(speaker)
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                chatViewModel.repliesToSpeak.collect(speaker::speak)
+                if (container.settingsRepository.settings.value.speakReplies) speaker.warmUp()
+                launch { chatViewModel.replyProgress.collect { speaker.follow(it.id, it.text, it.done) } }
+                // Leaving the screen on keeps the activity started, so the reply is fully received and read out.
+                combine(chatViewModel.busy, speaker.speaking) { busy, speaking -> busy || speaking }
+                    .collect { keepOn ->
+                        if (keepOn) {
+                            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        } else {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        }
+                    }
             }
         }
         setContent {

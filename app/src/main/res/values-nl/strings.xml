@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="chat_hint">Tik op de microfoon en vraag</string>
+    <string name="chat_hint">Tik om te vragen</string>
+    <string name="chat_thinking">Denkt na</string>
     <string name="chat_retry">Opnieuw</string>
     <string name="chat_ask_by_voice">Vraag met je stem</string>
     <string name="chat_new">Nieuwe chat</string>
@@ -25,6 +26,8 @@
     <string name="settings_done">OK</string>
 
     <string name="keys_saved">Key opgeslagen</string>
+
+    <string name="tts_volume_muted">Volume staat uit: zet het mediavolume hoger om antwoorden te horen</string>
 
     <string name="notification_channel_requests">Verzoeken</string>
     <string name="notification_request_in_progress">Bezig met antwoorden…</string>

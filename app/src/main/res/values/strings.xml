@@ -2,7 +2,8 @@
 <resources>
     <string name="app_name" translatable="false">Wristle</string>
 
-    <string name="chat_hint">Tap the mic and ask</string>
+    <string name="chat_hint">Tap to ask</string>
+    <string name="chat_thinking">Thinking</string>
     <string name="chat_retry">Retry</string>
     <string name="chat_ask_by_voice">Ask by voice</string>
     <string name="chat_new">New chat</string>
@@ -27,6 +28,8 @@
     <string name="settings_done">OK</string>
 
     <string name="keys_saved">Key saved</string>
+
+    <string name="tts_volume_muted">Volume is off: turn up media volume to hear replies</string>
 
     <string name="notification_channel_requests">Requests</string>
     <string name="notification_request_in_progress">Answering…</string>

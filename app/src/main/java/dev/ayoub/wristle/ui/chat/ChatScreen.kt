@@ -1,18 +1,27 @@
 package dev.ayoub.wristle.ui.chat
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -24,17 +33,22 @@ import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.ButtonDefaults
 import androidx.wear.compose.material.Chip
 import androidx.wear.compose.material.ChipDefaults
-import androidx.wear.compose.material.CircularProgressIndicator
+import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.PositionIndicator
 import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
 import dev.ayoub.wristle.R
+import dev.ayoub.wristle.data.ChatMessage
 import dev.ayoub.wristle.data.Failure
 import dev.ayoub.wristle.data.FailureReason
 import dev.ayoub.wristle.ui.Accent
 import dev.ayoub.wristle.ui.ErrorRed
+import kotlinx.coroutines.delay
+
+private val ReplyBubble = Color(0xFF2B2B2B)
+private val BubbleShape = RoundedCornerShape(16.dp)
 
 @Composable
 fun ChatScreen(
@@ -77,26 +91,22 @@ fun ChatScreen(
             item(key = "header") {
                 Text(text = state.header, style = MaterialTheme.typography.caption2, color = Color.Gray)
             }
-            if (state.messages.isEmpty() && state.failure == null) {
-                item(key = "hint") {
-                    Text(
-                        text = stringResource(R.string.chat_hint),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(8.dp),
-                    )
+            val empty = state.messages.isEmpty() && state.failure == null && !state.busy
+            if (empty) {
+                item(key = "empty") {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        MicButton(onMic = onMic, modifier = Modifier.padding(top = 8.dp))
+                        Text(
+                            text = stringResource(R.string.chat_hint),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
                 }
             }
             state.messages.forEach { message ->
                 message.paragraphs.forEachIndexed { index, paragraph ->
-                    item(key = "${message.id}-$index") {
-                        Text(
-                            text = paragraph,
-                            color = if (message.fromUser) Accent else Color.White,
-                            textAlign = if (message.fromUser) TextAlign.End else TextAlign.Start,
-                            style = MaterialTheme.typography.body2,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                        )
-                    }
+                    item(key = "${message.id}-$index") { Bubble(message, paragraph) }
                 }
             }
             state.failure?.let { failure ->
@@ -118,15 +128,70 @@ fun ChatScreen(
                 }
             }
             item(key = "controls") {
-                if (state.busy) {
-                    if (state.waitingForFirstWord) {
-                        CircularProgressIndicator(modifier = Modifier.padding(8.dp), indicatorColor = Accent)
-                    }
-                } else {
-                    ChatControls(onMic = onMic, onNewChat = onNewChat, onSettings = onSettings)
+                when {
+                    state.waitingForFirstWord -> Thinking()
+                    state.busy -> Unit
+                    empty -> SmallButton("⚙", stringResource(R.string.chat_open_settings), onSettings)
+                    else -> ChatControls(onMic = onMic, onNewChat = onNewChat, onSettings = onSettings)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun Bubble(
+    message: ChatMessage,
+    paragraph: String,
+) {
+    val padding =
+        if (message.fromUser) PaddingValues(start = 28.dp, end = 8.dp) else PaddingValues(start = 8.dp, end = 28.dp)
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(padding).padding(vertical = 2.dp),
+        contentAlignment = if (message.fromUser) Alignment.CenterEnd else Alignment.CenterStart,
+    ) {
+        Text(
+            text = paragraph,
+            color = Color.White,
+            style = MaterialTheme.typography.body2,
+            modifier =
+                Modifier
+                    .background(if (message.fromUser) Accent else ReplyBubble, BubbleShape)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+        )
+    }
+}
+
+@Composable
+private fun MicButton(
+    onMic: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Button(
+        onClick = onMic,
+        colors = ButtonDefaults.buttonColors(backgroundColor = Accent),
+        modifier = modifier.size(ButtonDefaults.LargeButtonSize),
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_mic),
+            contentDescription = stringResource(R.string.chat_ask_by_voice),
+            modifier = Modifier.size(32.dp),
+        )
+    }
+}
+
+@Composable
+private fun SmallButton(
+    symbol: String,
+    description: String,
+    onClick: () -> Unit,
+) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.secondaryButtonColors(),
+        modifier = Modifier.size(ButtonDefaults.SmallButtonSize).semantics { contentDescription = description },
+    ) {
+        Text(symbol)
     }
 }
 
@@ -136,31 +201,29 @@ private fun ChatControls(
     onNewChat: () -> Unit,
     onSettings: () -> Unit,
 ) {
-    val micDescription = stringResource(R.string.chat_ask_by_voice)
-    val newChatDescription = stringResource(R.string.chat_new)
-    val settingsDescription = stringResource(R.string.chat_open_settings)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-        Button(
-            onClick = onMic,
-            colors = ButtonDefaults.buttonColors(backgroundColor = Accent),
-            modifier = Modifier.semantics { contentDescription = micDescription },
-        ) {
-            Text("🎤")
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(top = 8.dp),
+    ) {
+        SmallButton("＋", stringResource(R.string.chat_new), onNewChat)
+        MicButton(onMic = onMic)
+        SmallButton("⚙", stringResource(R.string.chat_open_settings), onSettings)
+    }
+}
+
+@Composable
+private fun Thinking() {
+    val dots by produceState(0) {
+        while (true) {
+            delay(DOT_INTERVAL_MS)
+            value = (value + 1) % 4
         }
-        Button(
-            onClick = onNewChat,
-            colors = ButtonDefaults.secondaryButtonColors(),
-            modifier = Modifier.semantics { contentDescription = newChatDescription },
-        ) {
-            Text("＋")
-        }
-        Button(
-            onClick = onSettings,
-            colors = ButtonDefaults.secondaryButtonColors(),
-            modifier = Modifier.semantics { contentDescription = settingsDescription },
-        ) {
-            Text("⚙")
-        }
+    }
+    Row(modifier = Modifier.padding(8.dp)) {
+        Text(text = stringResource(R.string.chat_thinking), color = Accent)
+        // Fixed width so the text doesn't shift while the dots change.
+        Text(text = ".".repeat(dots), color = Accent, modifier = Modifier.width(16.dp))
     }
 }
 
@@ -175,3 +238,5 @@ private fun Failure.message(): String =
         FailureReason.INTERRUPTED -> stringResource(R.string.error_interrupted)
         FailureReason.EMPTY_REPLY -> stringResource(R.string.error_empty_reply)
     }
+
+private const val DOT_INTERVAL_MS = 400L

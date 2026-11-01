@@ -38,7 +38,9 @@ These repositories are named here for your context only. **Do not mention them a
 
 ## Branding
 
-The repo is public. Do not use Anthropic branding: no "Claude" as the app name, no Claude logo or look-alike icons, no Claude brand colours. "Claude" may appear only to describe which API is used (e.g. "Claude API key", `ClaudeRemoteDataSource`). The README carries an "unofficial, not affiliated" disclaimer.
+The repo is public. Do not use Anthropic's name or logo: no "Claude" as the app name, no Claude logo or look-alike icons. "Claude" may appear only to describe which API is used (e.g. "Claude API key", `ClaudeRemoteDataSource`). The README carries an "unofficial, not affiliated" disclaimer.
+
+The owner chose to use Claude's terracotta (`#D97757`) as the accent colour (`ui/Colors.kt`, launcher icon). Keep it.
 
 ## Build and test
 

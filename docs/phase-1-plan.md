@@ -12,15 +12,18 @@ Phase 2 (remote control of a computer) is **out of scope** here. Phase 1 must on
 - Big choices (speech-to-text, proxy, relay) are proposed with pros and cons and decided by the owner, never picked by the implementer.
 - No assumptions about what the Watch 4 can do: verify in code, documentation or on the device, and record what is still unverified.
 - API keys are never committed and never compiled into the APK.
-- No Anthropic branding (name, logo, colours). "Claude" is used only to describe which API the app calls.
+- No Anthropic name or logo. "Claude" is used only to describe which API the app calls. The accent colour is Claude's terracotta, by the owner's choice.
 
 ## Device facts
 
 | Fact | Status |
 |---|---|
 | Galaxy Watch 4 launched with Wear OS 3 (API 30); app `minSdk` is 30 | Known |
-| Wear OS / One UI Watch version currently on the owner's watch | **Unverified**: check with `adb shell getprop ro.build.version.sdk` and `ro.build.version.release` |
-| Which speech recognizer is installed (Google, Samsung, none) | **Unverified**: M2 |
+| Owner's watch: SM-R870 (Watch 4, 44 mm, Bluetooth/Wi-Fi), Android 16 / **API 36** (Wear OS 6), One UI Watch 8 (`ro.build.version.oneui=80000`), build `R870XXS2JZG3`, locale nl-NL. Matches `targetSdk` 36 | Verified via adb (2026-11-01) |
+| `ACTION_RECOGNIZE_SPEECH` is handled by **two** activities: Google `com.google.android.tts` (GoogleTTSActivity) and Samsung Keyboard `com.samsung.android.honeyboard` (RemoteInputActivity). Which one opens, or whether a chooser appears, is untested | Verified via adb; behaviour: M2 |
+| `RecognitionService`: only Google's (`com.google.android.tts/…GoogleTTSRecognitionService`), and it is the selected `voice_recognition_service` | Verified via adb, before installing Wristle |
+| Current digital assistant: `com.google.android.wearable.assistant`; `voice_interaction_service` is empty | Verified via adb |
+| TTS engines installed: Samsung (`com.samsung.SMT`) and Google (`com.google.android.tts`); no default set in secure settings | Verified via adb |
 | Whether a third-party app can be picked as digital assistant on One UI Watch | **Unverified**: M4 |
 | Whether "double press Home key → open app" can open any app | **Unverified**: M4 |
 | Microphone quality is weaker than on newer watches | Reported by the owner; measure in M2 |
@@ -39,10 +42,10 @@ What the app does today:
 
 ## Milestones
 
-### M1: Base app runs on the Watch 4 ✅ (code done, awaiting watch test)
+### M1: Base app runs on the Watch 4 ✅ (verified on the watch, 2026-11-01)
 
 - Set up the project under the package `dev.ayoub.wristle`.
-- Removed the Notion integration, the Russian text and the Anthropic branding.
+- Removed the Notion integration, the Russian text and the Anthropic name and logo.
 - English strings plus a Dutch translation; English system prompt; date format follows the device locale.
 - Windows key setup script; English README with sideload steps.
 

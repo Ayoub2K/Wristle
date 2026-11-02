@@ -94,12 +94,21 @@ Result on the owner's Galaxy Watch 4 and Windows PC: the codes matched on both s
 
 **Done when:** the watch and the PC pair and an encrypted test message round-trips.
 
-### P2-M3: Watch-started sessions, read-only
+### P2-M3: Watch-started sessions, read-only ✅ (verified 2026-11-02)
 
 - Start a session from the watch in an allowlisted project with a spoken instruction (Agent SDK, API key on the computer).
 - Follow progress on the watch: status and short summaries.
 
 **Done when:** a spoken instruction starts a session on the PC and the watch shows its progress.
+
+Built and verified on the owner's Galaxy Watch 4 and Windows PC on 2026-11-02: a spoken question started a read-only session, the watch showed its progress, answer and cost.
+
+- `wristle-bridge serve` keeps the encrypted mailbox open when paired and runs sessions with the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`). One session at a time.
+- **Read-only**: the session only gets `Read`, `Glob` and `Grep` (`permissionMode: "dontAsk"`), so it can look but not change anything until approvals arrive in P2-M4. It loads project settings and `CLAUDE.md`, not user settings.
+- **API key only**: the bridge refuses to start without `ANTHROPIC_API_KEY`, and stops a session whose init message reports any other credential source.
+- The model is the Agent SDK's default unless set with `wristle-bridge model <id>`; the watch shows which model ran.
+- Progress goes to the watch at most every 2.5 seconds (a few lines: what Claude says and which files it reads), then the final answer and the cost.
+- Watch: the *Code* half lists the allowed projects; tap one and speak the instruction. A running session can be stopped from the watch.
 
 ### P2-M4: Approvals and questions
 

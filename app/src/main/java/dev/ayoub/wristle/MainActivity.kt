@@ -42,8 +42,11 @@ class MainActivity : ComponentActivity() {
     private var navigationRequest by mutableStateOf<NavigationRequest?>(null)
 
     // Fallback when in-app recognition isn't available or the microphone permission is refused.
-    private val speechInput = SystemSpeechInput(this) { chatViewModel.send(it) }
-    private val inAppSpeech by lazy { InAppSpeechInput(this, onText = { chatViewModel.send(it) }, onFailure = ::onSpeechFailure) }
+    private val speechInput = SystemSpeechInput(this) { speechTarget(it) }
+    private val inAppSpeech by lazy { InAppSpeechInput(this, onText = { speechTarget(it) }, onFailure = ::onSpeechFailure) }
+
+    // Where recognised speech goes: a chat question by default, or an instruction for a Code session.
+    private var speechTarget: (String) -> Unit = { chatViewModel.send(it) }
 
     private val micPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -88,12 +91,14 @@ class MainActivity : ComponentActivity() {
                 settingsViewModel = settingsViewModel,
                 relayTestRepository = container.relayTestRepository,
                 pairingRepository = container.pairingRepository,
+                codeRepository = container.codeRepository,
+                onDictateCode = { project -> listen { container.codeRepository.start(project, it) } },
                 navigationRequest = navigationRequest,
                 listeningState = inAppSpeech.state,
                 onFinishListening = inAppSpeech::finish,
                 onCancelListening = inAppSpeech::cancel,
                 onOpenChat = ::openChat,
-                onMic = ::listen,
+                onMic = { listen() },
                 onNewChat = {
                     chatViewModel.newChat()
                     listen()
@@ -163,7 +168,8 @@ class MainActivity : ComponentActivity() {
         navigationRequest = NavigationRequest(destination, (navigationRequest?.id ?: 0) + 1)
     }
 
-    private fun listen() {
+    private fun listen(target: (String) -> Unit = { chatViewModel.send(it) }) {
+        speechTarget = target
         speaker.stop()
         when {
             !inAppSpeech.available -> speechInput.listen()

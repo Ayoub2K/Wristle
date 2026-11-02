@@ -13,6 +13,8 @@ export interface Project {
 export interface BridgeConfig {
   version: 1;
   projects: Project[];
+  /** Model for watch-started sessions; the Agent SDK's default when unset. */
+  model?: string;
 }
 
 export class ConfigError extends Error {}
@@ -23,7 +25,11 @@ export function loadConfig(file = configFile()): BridgeConfig {
   if (!fs.existsSync(file)) return empty();
   try {
     const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as Partial<BridgeConfig>;
-    return { version: 1, projects: Array.isArray(parsed.projects) ? parsed.projects : [] };
+    return {
+      version: 1,
+      projects: Array.isArray(parsed.projects) ? parsed.projects : [],
+      ...(typeof parsed.model === "string" && parsed.model ? { model: parsed.model } : {}),
+    };
   } catch (e) {
     throw new ConfigError(`config file is not valid JSON: ${file} (${(e as Error).message})`);
   }

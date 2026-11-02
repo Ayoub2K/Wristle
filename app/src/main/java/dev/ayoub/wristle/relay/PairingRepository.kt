@@ -13,8 +13,11 @@ import com.google.firebase.messaging.FirebaseMessaging
 import dev.ayoub.wristle.data.SecretCipher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -47,7 +50,6 @@ sealed interface PairingState {
 
     data class Paired(
         val computerName: String?,
-        val pings: Int = 0,
     ) : PairingState
 
     data class Failed(
@@ -89,6 +91,11 @@ class PairingRepository(
 
     private val mutableState = MutableStateFlow(initialState())
     val state: StateFlow<PairingState> = mutableState.asStateFlow()
+
+    private val mutableMessages = MutableSharedFlow<JsonNode>(extraBufferCapacity = MESSAGE_BUFFER)
+
+    /** Opened messages from the bridge that pairing itself doesn't handle (projects, session progress, …). */
+    val messages: SharedFlow<JsonNode> = mutableMessages.asSharedFlow()
 
     private fun initialState(): PairingState =
         when {
@@ -288,13 +295,20 @@ class PairingRepository(
                 mutableState.update { if (it is PairingState.Paired) it.copy(computerName = updated.computerName) else it }
                 updated
             }
-            "ping" -> {
-                val updated = send(stored, PairingCrypto.message("pong").put("id", message["id"]?.asText()))
-                mutableState.update { if (it is PairingState.Paired) it.copy(pings = it.pings + 1) else it }
-                updated
+            "ping" -> send(stored, PairingCrypto.message("pong").put("id", message["id"]?.asText()))
+            else -> {
+                mutableMessages.tryEmit(message)
+                stored
             }
-            else -> stored
         }
+
+    /** Seals [message] and puts it in the bridge's mailbox; the bridge daemon listens there. */
+    suspend fun sendToBridge(message: ObjectNode) {
+        mailbox.withLock {
+            val stored = checkNotNull(load()) { "not paired" }
+            send(stored, message)
+        }
+    }
 
     private suspend fun send(
         stored: Stored,
@@ -376,6 +390,7 @@ class PairingRepository(
         const val CODE_ATTEMPTS = 3
         const val CODE_TTL_MS = 10 * 60_000L
         const val SEQ_DIGITS = 12
+        const val MESSAGE_BUFFER = 32
         val random = SecureRandom()
     }
 }

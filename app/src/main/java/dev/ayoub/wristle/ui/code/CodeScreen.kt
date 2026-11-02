@@ -1,47 +1,65 @@
 package dev.ayoub.wristle.ui.code
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.ScalingLazyListScope
+import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.ButtonDefaults
 import androidx.wear.compose.material.Chip
 import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.CircularProgressIndicator
+import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.PositionIndicator
 import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.Text
 import dev.ayoub.wristle.R
+import dev.ayoub.wristle.code.CodeSession
+import dev.ayoub.wristle.code.CodeState
+import dev.ayoub.wristle.code.Project
 import dev.ayoub.wristle.relay.PairingState
 import dev.ayoub.wristle.ui.Accent
 import dev.ayoub.wristle.ui.ErrorRed
 
-/** The Code half: pairing with the computer bridge, then (P2-M2b) a paired status with the encrypted ping count. */
+/** The Code half: pairing with the computer bridge, then the allowed projects and the session started from the watch. */
 @Composable
 fun CodeScreen(
     state: PairingState,
+    code: CodeState,
     onStartPairing: () -> Unit,
     onCancelPairing: () -> Unit,
     onConfirm: () -> Unit,
     onReject: () -> Unit,
     onUnpair: () -> Unit,
+    onRefresh: () -> Unit,
+    onDictate: (Project) -> Unit,
+    onStop: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
     LaunchedEffect(state is PairingState.Unpaired) { if (state is PairingState.Unpaired) onStartPairing() }
+    LaunchedEffect(state is PairingState.Paired) { if (state is PairingState.Paired) onRefresh() }
     DisposableEffect(Unit) { onDispose(onCancelPairing) }
     val listState = rememberScalingLazyListState()
     Scaffold(positionIndicator = { PositionIndicator(scalingLazyListState = listState) }) {
@@ -72,20 +90,16 @@ fun CodeScreen(
                     item { ActionChip(stringResource(R.string.relay_retry), onStartPairing) }
                 }
                 is PairingState.Paired -> {
-                    val name = state.computerName
+                    code.session?.let { session -> item { SessionCard(session, onStop = onStop, onDismiss = onDismiss) } }
+                    code.error?.let { error -> item { Info(error, color = ErrorRed) } }
+                    if (code.session?.running != true) projectItems(code, onRefresh = onRefresh, onDictate = onDictate)
                     item {
+                        val name = state.computerName
                         Info(
-                            if (name ==
-                                null
-                            ) {
-                                stringResource(R.string.pair_paired)
-                            } else {
-                                stringResource(R.string.pair_paired_with, name)
-                            },
+                            if (name == null) stringResource(R.string.pair_paired) else stringResource(R.string.pair_paired_with, name),
+                            color = Color.Gray,
                         )
                     }
-                    item { Info(stringResource(R.string.pair_pings, state.pings), color = Color.Gray) }
-                    item { Info("wristle-bridge ping", color = Color.Gray, monospace = true) }
                     item { ActionChip(stringResource(R.string.pair_unpair), onUnpair, background = MaterialTheme.colors.surface) }
                 }
                 is PairingState.Failed -> {
@@ -93,6 +107,66 @@ fun CodeScreen(
                     item { ActionChip(stringResource(R.string.relay_retry), onStartPairing) }
                 }
             }
+        }
+    }
+}
+
+private fun ScalingLazyListScope.projectItems(
+    code: CodeState,
+    onRefresh: () -> Unit,
+    onDictate: (Project) -> Unit,
+) {
+    val projects = code.projects
+    when {
+        code.noAnswer -> {
+            item { Info(stringResource(R.string.code_no_answer), color = ErrorRed) }
+            item { Info("wristle-bridge serve", color = Color.Gray, monospace = true) }
+            item { ActionChip(stringResource(R.string.relay_retry), onRefresh) }
+        }
+        projects == null -> item { CircularProgressIndicator(indicatorColor = Accent, modifier = Modifier.padding(8.dp)) }
+        projects.isEmpty() -> {
+            item { Info(stringResource(R.string.code_no_projects)) }
+            item { Info("wristle-bridge projects add <folder>", color = Color.Gray, monospace = true) }
+        }
+        else -> {
+            item { Info(stringResource(R.string.code_pick_project), color = Color.Gray) }
+            items(projects) { project ->
+                Chip(
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(project.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    icon = { Icon(painterResource(R.drawable.ic_mic), contentDescription = null, modifier = Modifier.size(20.dp)) },
+                    onClick = { onDictate(project) },
+                    colors = ChipDefaults.secondaryChipColors(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SessionCard(
+    session: CodeSession,
+    onStop: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 8.dp)) {
+        Text(session.project, color = Accent, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.title3)
+        Info("\u201C${session.prompt}\u201D", color = Color.LightGray, maxLines = 3)
+        session.model?.let { Info(it, color = Color.Gray, monospace = true) }
+        session.lines.forEach { Info(it, color = Color.Gray, style = MaterialTheme.typography.caption2, maxLines = 2) }
+        if (session.running) {
+            CircularProgressIndicator(indicatorColor = Accent, modifier = Modifier.padding(6.dp).size(28.dp))
+            ActionChip(stringResource(R.string.code_stop), onStop, background = ErrorRed)
+        } else {
+            Info(session.summary.orEmpty(), color = if (session.ok == true) Color.White else ErrorRed)
+            session.costUsd?.let {
+                Info(
+                    stringResource(R.string.code_cost, it),
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.caption2,
+                )
+            }
+            ActionChip(stringResource(R.string.code_new_question), onDismiss)
         }
     }
 }
@@ -139,12 +213,16 @@ private fun Info(
     text: String,
     color: Color = Color.White,
     monospace: Boolean = false,
+    style: TextStyle = MaterialTheme.typography.body2,
+    maxLines: Int = Int.MAX_VALUE,
 ) {
     Text(
         text = text,
         color = color,
         textAlign = TextAlign.Center,
-        style = MaterialTheme.typography.body2,
+        style = style,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
         fontFamily = if (monospace) FontFamily.Monospace else null,
         modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
     )

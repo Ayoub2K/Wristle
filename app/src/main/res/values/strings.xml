@@ -28,7 +28,12 @@
     <string name="pair_cancelled_on_computer">Pairing was cancelled on the computer.</string>
     <string name="pair_paired">Paired with your computer</string>
     <string name="pair_paired_with">Paired with %1$s</string>
-    <string name="pair_pings">Encrypted pings answered: %1$d</string>
+    <string name="code_pick_project">Tap a project, then say what to do</string>
+    <string name="code_no_projects">No projects allowed yet. On your computer, run:</string>
+    <string name="code_no_answer">No answer from your computer. Is the bridge running?</string>
+    <string name="code_stop">Stop</string>
+    <string name="code_new_question">New question</string>
+    <string name="code_cost">Cost: $%1$.3f</string>
     <string name="pair_unpair">Unpair</string>
     <string name="history_title">Past chats</string>
     <string name="history_empty">No past chats yet</string>

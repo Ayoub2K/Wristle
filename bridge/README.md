@@ -2,7 +2,7 @@
 
 Runs on your computer and connects Claude Code to the Wristle watch app. Works on Windows, macOS and Linux (Node.js 20+).
 
-**Status:** phase 2, milestone P2-M2b. It runs as a daemon, manages the list of folders where sessions may start, and pairs with the watch over your own Firebase relay with end-to-end encryption ([setup](../docs/firebase-setup.md)). Claude Code sessions come in later milestones; see [docs/phase-2-plan.md](../docs/phase-2-plan.md).
+**Status:** phase 2, milestone P2-M3. It runs as a daemon, manages the list of folders where sessions may start, pairs with the watch over your own Firebase relay with end-to-end encryption ([setup](../docs/firebase-setup.md)), and runs read-only Claude Code sessions that you start from the watch. Approvals and terminal sessions come in later milestones; see [docs/phase-2-plan.md](../docs/phase-2-plan.md).
 
 ## Try it
 
@@ -20,6 +20,15 @@ node dist/cli.js ping           # encrypted round trip to the watch
 ```
 
 To type `wristle-bridge` instead of `node dist/cli.js`, run `npm link` once in this folder. It points the global command at this checkout, so later `npm run build`s are picked up; `npm unlink -g wristle-bridge` removes it.
+
+## Sessions from the watch
+
+1. Give the bridge an API key from the [Claude Console](https://console.anthropic.com). Watch-started sessions use the Claude Agent SDK, which must run on an API key (not a claude.ai login). On Windows, run `setx ANTHROPIC_API_KEY <key>` once and open a new terminal; on macOS and Linux, export it in your shell profile.
+2. Allow at least one project: `wristle-bridge projects add <folder>`.
+3. Start the daemon and keep it running: `wristle-bridge serve`.
+4. On the watch, open **Code**, tap a project and say what you want to know.
+
+Sessions are read-only for now (they can read and search the project, nothing else) and run one at a time. Each one costs API usage; the watch shows the cost when it finishes. `wristle-bridge model <id>` picks the model (`wristle-bridge model default` goes back to the Agent SDK's default).
 
 ## Encryption
 

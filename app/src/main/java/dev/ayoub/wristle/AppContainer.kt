@@ -2,6 +2,7 @@ package dev.ayoub.wristle
 
 import android.content.Context
 import dev.ayoub.wristle.chat.ClaudeApiBackend
+import dev.ayoub.wristle.code.CodeRepository
 import dev.ayoub.wristle.data.ChatRepository
 import dev.ayoub.wristle.data.ChatStore
 import dev.ayoub.wristle.data.SecretCipher
@@ -36,4 +37,6 @@ class AppContainer(
     val relayTestRepository = RelayTestRepository(appScope)
 
     val pairingRepository = PairingRepository(appContext, secretCipher, appScope)
+
+    val codeRepository = CodeRepository(pairingRepository, appScope)
 }

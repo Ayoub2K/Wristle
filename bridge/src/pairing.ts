@@ -161,52 +161,78 @@ export async function send(pairing: Pairing, message: Message): Promise<void> {
   }
 }
 
-export interface PingResult {
-  roundTripMs: number;
-}
+/**
+ * The bridge's end of the encrypted mailbox: one listener on the watch's outbox (w2b) that opens each
+ * envelope, drops it from Firestore and hands the message to every subscriber. The daemon keeps one open.
+ */
+export class Mailbox {
+  private readonly handlers = new Set<(message: Message) => void>();
 
-/** P2-M2b test: an encrypted ping that the watch must open and answer with an encrypted pong. */
-export async function encryptedPing(timeoutMs = 60_000): Promise<PingResult> {
-  const pairing = requirePairing();
-  const { db } = await connect();
-  const inbox = db.collection(PAIRINGS).doc(pairing.pairingId).collection("w2b");
-  const id = Math.random().toString(36).slice(2, 10);
-  const sentAt = Date.now();
-  const pong = new Promise<number>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      unsubscribe();
-      reject(new RelayError(`no answer from the watch within ${timeoutMs / 1000}s`));
-    }, timeoutMs);
-    const unsubscribe = inbox.orderBy("seq").onSnapshot(
-      (snapshot) => {
-        for (const change of snapshot.docChanges()) {
-          if (change.type !== "added") continue;
-          const envelope = change.doc.data() as Envelope;
-          void change.doc.ref.delete();
-          let message: Message;
-          try {
-            message = open(Buffer.from(pairing.w2bKey, "base64"), pairing.pairingId, "w2b", envelope, pairing.lastSeqIn);
-          } catch (e) {
-            if (e instanceof CryptoError) continue;
-            throw e;
-          }
-          pairing.lastSeqIn = envelope.seq;
-          savePairing(pairing);
-          if (message.type === "pong" && message.id === id) {
-            clearTimeout(timer);
-            unsubscribe();
-            resolve(Date.now());
-          }
+  private constructor(
+    readonly pairing: Pairing,
+    private readonly unsubscribe: () => void,
+  ) {}
+
+  static async open(onError: (error: Error) => void = () => undefined): Promise<Mailbox> {
+    const pairing = requirePairing();
+    const { db } = await connect();
+    const inbox = db.collection(PAIRINGS).doc(pairing.pairingId).collection("w2b");
+    let mailbox: Mailbox | undefined;
+    const unsubscribe = inbox.orderBy("seq").onSnapshot((snapshot) => {
+      for (const change of snapshot.docChanges()) {
+        if (change.type !== "added") continue;
+        const envelope = change.doc.data() as Envelope;
+        void change.doc.ref.delete();
+        let message: Message;
+        try {
+          message = open(Buffer.from(pairing.w2bKey, "base64"), pairing.pairingId, "w2b", envelope, pairing.lastSeqIn);
+        } catch (e) {
+          if (e instanceof CryptoError) continue;
+          throw e;
         }
-      },
-      (error) => {
+        pairing.lastSeqIn = envelope.seq;
+        savePairing(pairing);
+        for (const handler of mailbox?.handlers ?? []) handler(message);
+      }
+    }, onError);
+    mailbox = new Mailbox(pairing, unsubscribe);
+    return mailbox;
+  }
+
+  /** Subscribes to messages from the watch; returns the unsubscribe function. */
+  onMessage(handler: (message: Message) => void): () => void {
+    this.handlers.add(handler);
+    return () => this.handlers.delete(handler);
+  }
+
+  send(message: Omit<Message, "ts">): Promise<void> {
+    return send(this.pairing, { ...message, ts: Date.now() } as Message);
+  }
+
+  /** An encrypted ping that the watch must open and answer with an encrypted pong; resolves with the round trip in ms. */
+  async ping(timeoutMs = 60_000): Promise<number> {
+    const id = Math.random().toString(36).slice(2, 10);
+    const sentAt = Date.now();
+    const pong = new Promise<number>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        off();
+        reject(new RelayError(`no answer from the watch within ${timeoutMs / 1000}s`));
+      }, timeoutMs);
+      const off = this.onMessage((message) => {
+        if (message.type !== "pong" || message.id !== id) return;
         clearTimeout(timer);
-        reject(error);
-      },
-    );
-  });
-  await send(pairing, { type: "ping", ts: sentAt, id });
-  return { roundTripMs: (await pong) - sentAt };
+        off();
+        resolve(Date.now() - sentAt);
+      });
+    });
+    await this.send({ type: "ping", id });
+    return pong;
+  }
+
+  close(): void {
+    this.unsubscribe();
+    this.handlers.clear();
+  }
 }
 
 const CODES = "pairingCodes";

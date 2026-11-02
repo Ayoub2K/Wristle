@@ -8,7 +8,7 @@ import { addProject, ConfigError, loadConfig, removeProject, saveConfig } from "
 import { startDaemon } from "./daemon.js";
 import { DaemonAlreadyRunningError, isListening, request } from "./ipc.js";
 import { createLogger } from "./log.js";
-import { encryptedPing, loadPairing, pair, pairingFile, unpair } from "./pairing.js";
+import { loadPairing, Mailbox, pair, pairingFile, unpair } from "./pairing.js";
 import { configDir, ipcPath, logFile } from "./paths.js";
 import { checkRelay, credentialsFile, installServiceAccount, loadServiceAccount, pingWatch, RelayError } from "./relay.js";
 import { VERSION } from "./version.js";
@@ -29,6 +29,7 @@ Usage:
   wristle-bridge pair <code>              pair with the watch (open Code on the watch for the code)
   wristle-bridge unpair                   forget the paired watch
   wristle-bridge ping                     send an encrypted ping to the paired watch
+  wristle-bridge model [<id>|default]     model for sessions started from the watch
   wristle-bridge doctor                   check this computer's setup
   wristle-bridge help`;
 
@@ -59,6 +60,7 @@ async function status(): Promise<number> {
   }
   console.log(`running: pid ${response.pid}, up ${response.uptimeSeconds}s, ${response.projects} allowed project(s)`);
   console.log(`config: ${response.configDir}`);
+  console.log(`watch: ${response.watch}`);
   return EXIT.ok;
 }
 
@@ -152,6 +154,7 @@ async function pairCommand(code: string | undefined): Promise<number> {
     },
   });
   console.log("✓ paired; try `wristle-bridge ping`");
+  if (await isListening()) console.log("restart `wristle-bridge serve` so the daemon picks up the pairing");
   return EXIT.ok;
 }
 
@@ -162,8 +165,32 @@ async function unpairCommand(): Promise<number> {
 
 async function ping(): Promise<number> {
   console.log("sending an encrypted ping…");
-  const result = await encryptedPing();
-  console.log(`✓ the watch opened it and answered in ${result.roundTripMs} ms`);
+  let roundTripMs: number;
+  // A running daemon owns the mailbox; a second listener would race it for the watch's answers.
+  if (await isListening()) {
+    const response = await request({ cmd: "ping" }, undefined, 65_000);
+    if (!response?.ok) throw new RelayError(String(response?.error ?? "the daemon did not answer"));
+    roundTripMs = Number(response.roundTripMs);
+  } else {
+    const mailbox = await Mailbox.open();
+    try {
+      roundTripMs = await mailbox.ping();
+    } finally {
+      mailbox.close();
+    }
+  }
+  console.log(`✓ the watch opened it and answered in ${roundTripMs} ms`);
+  return EXIT.ok;
+}
+
+function model(id: string | undefined): number {
+  const config = loadConfig();
+  if (id) {
+    if (id === "default") delete config.model;
+    else config.model = id;
+    saveConfig(config);
+  }
+  console.log(`model for watch sessions: ${config.model ?? "Agent SDK default"}`);
   return EXIT.ok;
 }
 
@@ -226,6 +253,8 @@ async function main(argv: string[]): Promise<number> {
       return unpairCommand();
     case "ping":
       return ping();
+    case "model":
+      return model(args[0]);
     case "doctor":
       return doctor();
     case "--version":

@@ -9,6 +9,8 @@ import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
+import dev.ayoub.wristle.code.CodeRepository
+import dev.ayoub.wristle.code.Project
 import dev.ayoub.wristle.relay.PairingRepository
 import dev.ayoub.wristle.relay.RelayTestRepository
 import dev.ayoub.wristle.speech.ListeningState
@@ -36,6 +38,8 @@ fun WristleApp(
     settingsViewModel: SettingsViewModel,
     relayTestRepository: RelayTestRepository,
     pairingRepository: PairingRepository,
+    codeRepository: CodeRepository,
+    onDictateCode: (Project) -> Unit,
     navigationRequest: NavigationRequest?,
     listeningState: StateFlow<ListeningState>,
     onFinishListening: () -> Unit,
@@ -72,13 +76,19 @@ fun WristleApp(
                 }
                 composable(Destination.CODE.name) {
                     val state by pairingRepository.state.collectAsStateWithLifecycle()
+                    val code by codeRepository.state.collectAsStateWithLifecycle()
                     CodeScreen(
                         state = state,
+                        code = code,
                         onStartPairing = pairingRepository::startPairing,
                         onCancelPairing = pairingRepository::cancelPairing,
                         onConfirm = pairingRepository::confirm,
                         onReject = pairingRepository::reject,
                         onUnpair = pairingRepository::unpair,
+                        onRefresh = codeRepository::refresh,
+                        onDictate = onDictateCode,
+                        onStop = codeRepository::stop,
+                        onDismiss = codeRepository::dismiss,
                     )
                 }
                 composable(Destination.HISTORY.name) {

@@ -18,12 +18,12 @@ afterEach(() => {
 
 describe("daemon over IPC", () => {
   it("answers status, refuses a second daemon, and stops on request", async () => {
-    const daemon = await startDaemon(quiet);
+    const daemon = await startDaemon(quiet, { relay: false });
     try {
       expect(fs.readFileSync(pidFile(), "utf8")).toBe(String(process.pid));
 
       expect(await request({ cmd: "status" })).toMatchObject({ ok: true, pid: process.pid, projects: 0 });
-      await expect(startDaemon(quiet)).rejects.toBeInstanceOf(DaemonAlreadyRunningError);
+      await expect(startDaemon(quiet, { relay: false })).rejects.toBeInstanceOf(DaemonAlreadyRunningError);
       expect(await request({ cmd: "nope" })).toMatchObject({ ok: false });
 
       expect(await request({ cmd: "stop" })).toMatchObject({ ok: true });

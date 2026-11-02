@@ -47,7 +47,7 @@ export function loadServiceAccount(): ServiceAccount {
 }
 
 // firebase-admin is loaded lazily so commands that don't need the relay stay fast.
-async function connect(account: ServiceAccount) {
+export async function connect(account: ServiceAccount = loadServiceAccount()) {
   const { cert, getApps, initializeApp } = await import("firebase-admin/app");
   const { getFirestore } = await import("firebase-admin/firestore");
   const { getMessaging } = await import("firebase-admin/messaging");

@@ -3,7 +3,9 @@ package dev.ayoub.wristle.relay
 import android.content.Context
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
+import com.google.firebase.auth.FirebaseAuth
 import dev.ayoub.wristle.BuildConfig
+import kotlinx.coroutines.tasks.await
 
 /**
  * Sets up the owner's Firebase project from build config (local.properties) instead of google-services.json,
@@ -18,6 +20,13 @@ object RelayFirebase {
                 BuildConfig.FIREBASE_API_KEY,
                 BuildConfig.FIREBASE_SENDER_ID,
             ).all { it.isNotBlank() }
+
+    /** Anonymous sign-in; the user id stays the same until the app's data is cleared. */
+    suspend fun signIn(): String {
+        val auth = FirebaseAuth.getInstance()
+        auth.currentUser?.let { return it.uid }
+        return checkNotNull(auth.signInAnonymously().await().user).uid
+    }
 
     fun init(context: Context) {
         if (!configured || FirebaseApp.getApps(context).isNotEmpty()) return

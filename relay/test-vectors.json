@@ -1,0 +1,19 @@
+{
+  "watchPrivate": "7Gebjv095/4Kv6/4760vcA/hVM6zNgI+hzqFKAljliA=",
+  "watchPublic": "NC5cfotrE89ky2OoIHpWVQqs11IYIHDMsAmYNAmsrxo=",
+  "bridgePrivate": "+hFtR9mQMdJj94vI8jGAPdYROeMaCaunTA6VmhdIzDI=",
+  "bridgePublic": "2ZFpjjg9GAWCeBF7cNwj6VC1N1WfMRk7YLXxG+XA8m0=",
+  "w2bKey": "iKrxu9jE0VGG0HTQSrtTOA9KljWDaU3whcJmFa11s44=",
+  "b2wKey": "nlxJljW13WIxXaOo+t/gxqsg0APxu4pSI84TfnOeO0U=",
+  "sas": "244785",
+  "message": {
+    "pairingId": "test-pairing",
+    "direction": "b2w",
+    "plaintext": "{\"type\":\"ping\",\"ts\":1793600000000,\"id\":\"abc\"}",
+    "envelope": {
+      "seq": 7,
+      "n": "JdgKnE4x45OmOYCl",
+      "c": "IeYzk0/SQVlkDAyQovlEQPJWyUzgm5AGWuT/3mGj12zoeoNE0LrERpebMhHlN53ORjhLUolceFJPJWxdbQ=="
+    }
+  }
+}

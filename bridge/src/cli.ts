@@ -2,10 +2,13 @@
 /** wristle-bridge command line. */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import { createInterface } from "node:readline/promises";
+import { CryptoError } from "./crypto.js";
 import { addProject, ConfigError, loadConfig, removeProject, saveConfig } from "./config.js";
 import { startDaemon } from "./daemon.js";
 import { DaemonAlreadyRunningError, isListening, request } from "./ipc.js";
 import { createLogger } from "./log.js";
+import { encryptedPing, loadPairing, pair, pairingFile, unpair } from "./pairing.js";
 import { configDir, ipcPath, logFile } from "./paths.js";
 import { checkRelay, credentialsFile, installServiceAccount, loadServiceAccount, pingWatch, RelayError } from "./relay.js";
 import { VERSION } from "./version.js";
@@ -23,6 +26,9 @@ Usage:
   wristle-bridge projects remove <id|name|dir>
   wristle-bridge relay setup <key.json>   store the Firebase service account key and check it
   wristle-bridge relay test               push a ping to the watch and wait for its answer
+  wristle-bridge pair <code>              pair with the watch (open Code on the watch for the code)
+  wristle-bridge unpair                   forget the paired watch
+  wristle-bridge ping                     send an encrypted ping to the paired watch
   wristle-bridge doctor                   check this computer's setup
   wristle-bridge help`;
 
@@ -124,6 +130,43 @@ async function relay(args: string[]): Promise<number> {
   }
 }
 
+async function pairCommand(code: string | undefined): Promise<number> {
+  if (!code) return usage("pair needs the code shown on the watch");
+  if (loadPairing()) {
+    console.error("already paired: run `wristle-bridge unpair` first");
+    return EXIT.error;
+  }
+  console.log("connecting…");
+  await pair(code, {
+    async confirm(sas) {
+      const rl = createInterface({ input: process.stdin, output: process.stdout });
+      try {
+        console.log(`
+  security code: ${sas.slice(0, 3)} ${sas.slice(3)}
+`);
+        const answer = await rl.question("Does the watch show the same code? Confirm it there too. [y/N] ");
+        return answer.trim().toLowerCase().startsWith("y");
+      } finally {
+        rl.close();
+      }
+    },
+  });
+  console.log("✓ paired; try `wristle-bridge ping`");
+  return EXIT.ok;
+}
+
+async function unpairCommand(): Promise<number> {
+  console.log((await unpair()) ? "unpaired" : "not paired");
+  return EXIT.ok;
+}
+
+async function ping(): Promise<number> {
+  console.log("sending an encrypted ping…");
+  const result = await encryptedPing();
+  console.log(`✓ the watch opened it and answered in ${result.roundTripMs} ms`);
+  return EXIT.ok;
+}
+
 async function doctor(): Promise<number> {
   let problems = 0;
   const check = (ok: boolean, label: string, detail: string) => {
@@ -146,6 +189,7 @@ async function doctor(): Promise<number> {
   console.log(`  daemon: ${(await isListening()) ? "running" : "not running"}`);
   console.log(`  allowed projects: ${loadConfig().projects.length}`);
   console.log(`  Firebase key: ${fs.existsSync(credentialsFile()) ? "stored" : "not set up (see docs/firebase-setup.md)"}`);
+  console.log(`  watch: ${fs.existsSync(pairingFile()) ? "paired" : "not paired (wristle-bridge pair <code>)"}`);
   // `claude` can be a .cmd shim on Windows, which needs a shell; a fixed command string avoids passing args through it.
   const claude =
     process.platform === "win32"
@@ -176,6 +220,12 @@ async function main(argv: string[]): Promise<number> {
       return projects(args);
     case "relay":
       return relay(args);
+    case "pair":
+      return pairCommand(args[0]);
+    case "unpair":
+      return unpairCommand();
+    case "ping":
+      return ping();
     case "doctor":
       return doctor();
     case "--version":
@@ -198,7 +248,7 @@ main(process.argv.slice(2)).then(
     process.exitCode = code;
   },
   (e: unknown) => {
-    console.error(e instanceof ConfigError || e instanceof RelayError ? e.message : e);
+    console.error(e instanceof ConfigError || e instanceof RelayError || e instanceof CryptoError ? e.message : e);
     process.exitCode = EXIT.error;
   },
 );

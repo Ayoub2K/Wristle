@@ -120,6 +120,7 @@ dependencies {
     implementation(libs.coroutines.android)
     implementation(libs.anthropic.java)
     implementation(libs.okhttp)
+    implementation(libs.tink)
     implementation(libs.profileinstaller)
     testImplementation(libs.junit)
 }

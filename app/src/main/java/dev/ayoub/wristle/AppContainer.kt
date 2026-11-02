@@ -6,6 +6,7 @@ import dev.ayoub.wristle.data.ChatRepository
 import dev.ayoub.wristle.data.ChatStore
 import dev.ayoub.wristle.data.SecretCipher
 import dev.ayoub.wristle.data.SettingsRepository
+import dev.ayoub.wristle.relay.PairingRepository
 import dev.ayoub.wristle.relay.RelayTestRepository
 import dev.ayoub.wristle.service.ChatRequestService
 import kotlinx.coroutines.CoroutineScope
@@ -19,7 +20,9 @@ class AppContainer(
     private val appContext = context.applicationContext
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
-    val settingsRepository = SettingsRepository(appContext, SecretCipher())
+    private val secretCipher = SecretCipher()
+
+    val settingsRepository = SettingsRepository(appContext, secretCipher)
 
     val chatRepository =
         ChatRepository(
@@ -31,4 +34,6 @@ class AppContainer(
         )
 
     val relayTestRepository = RelayTestRepository(appScope)
+
+    val pairingRepository = PairingRepository(appContext, secretCipher, appScope)
 }

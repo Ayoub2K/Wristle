@@ -78,11 +78,7 @@ class RelayTestRepository(
         document(uid).set(mapOf("fcmToken" to token, "updatedAt" to FieldValue.serverTimestamp()), SetOptions.merge()).await()
     }
 
-    private suspend fun signIn(): String {
-        val auth = FirebaseAuth.getInstance()
-        auth.currentUser?.let { return it.uid }
-        return checkNotNull(auth.signInAnonymously().await().user).uid
-    }
+    private suspend fun signIn() = RelayFirebase.signIn()
 
     private fun document(uid: String) = FirebaseFirestore.getInstance().collection(TESTS).document(uid)
 

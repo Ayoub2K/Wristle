@@ -8,16 +8,25 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /** Receives the bridge's pushes. Runs on a background thread with a short time budget, hence the timeout. */
 class WristleMessagingService : FirebaseMessagingService() {
-    private val relayTest get() = (application as WristleApplication).container.relayTestRepository
+    private val container get() = (application as WristleApplication).container
 
     override fun onMessageReceived(message: RemoteMessage) {
-        val id = message.data["id"] ?: return
-        if (message.data["type"] != "ping") return
-        runBlocking { withTimeoutOrNull(HANDLE_TIMEOUT_MS) { runCatching { relayTest.answerPing(id) } } }
+        val data = message.data
+        when (data["type"]) {
+            // P2-M2a relay test: plaintext ping id.
+            "ping" -> data["id"]?.let { id -> handle { container.relayTestRepository.answerPing(id) } }
+            // Encrypted mailbox: the push only says which pairing has news.
+            "msg" -> data["pairingId"]?.let { id -> handle { container.pairingRepository.handleIncoming(id) } }
+        }
     }
 
     override fun onNewToken(token: String) {
-        runBlocking { withTimeoutOrNull(HANDLE_TIMEOUT_MS) { runCatching { relayTest.tokenChanged(token) } } }
+        handle { container.relayTestRepository.tokenChanged(token) }
+        handle { container.pairingRepository.tokenChanged(token) }
+    }
+
+    private fun handle(work: suspend () -> Unit) {
+        runBlocking { withTimeoutOrNull(HANDLE_TIMEOUT_MS) { runCatching { work() } } }
     }
 
     private companion object {

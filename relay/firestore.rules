@@ -4,12 +4,42 @@ rules_version = '2';
 // The watch signs in anonymously and may only touch its own documents.
 service cloud.firestore {
   match /databases/{database}/documents {
-    // P2-M2a relay test: one document per watch, keyed by its anonymous user id.
-    match /tests/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+    function signedIn() {
+      return request.auth != null;
     }
 
-    // Everything else is closed until pairing (P2-M2b) adds its own rules.
+    function ownsPairing(pairingId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/pairings/$(pairingId)).data.watchUid == request.auth.uid;
+    }
+
+    // P2-M2a relay test: one document per watch, keyed by its anonymous user id.
+    match /tests/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Pairing codes shown on the watch. Create only, so an existing code can't be taken over.
+    match /pairingCodes/{code} {
+      allow create: if signedIn() && request.resource.data.watchUid == request.auth.uid;
+      allow read, delete: if signedIn() && resource.data.watchUid == request.auth.uid;
+    }
+
+    // One document per pairing with public keys, the watch's FCM token and confirmations.
+    match /pairings/{pairingId} {
+      allow create: if signedIn() && request.resource.data.watchUid == request.auth.uid;
+      allow read, delete: if signedIn() && resource.data.watchUid == request.auth.uid;
+      // The watch may only confirm or refresh its push token; keys are fixed once written.
+      allow update: if signedIn() && resource.data.watchUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['watchConfirmed', 'fcmToken']);
+
+      // Sealed messages. The watch reads and clears its inbox (b2w) and writes to the bridge (w2b).
+      match /{direction}/{seq} {
+        allow read, delete: if (direction == 'b2w' || direction == 'w2b') && ownsPairing(pairingId);
+        allow create: if direction == 'w2b' && ownsPairing(pairingId);
+      }
+    }
+
+    // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;
     }

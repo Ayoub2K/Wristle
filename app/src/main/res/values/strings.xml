@@ -21,7 +21,15 @@
 
     <string name="home_chat">Chat</string>
     <string name="home_code">Code</string>
-    <string name="code_coming_soon">Controlling your computer is coming in a later version.</string>
+    <string name="pair_getting_code">Getting a pairing code…</string>
+    <string name="pair_run_on_computer">On your computer, run:</string>
+    <string name="pair_same_code">Same code on your computer?</string>
+    <string name="pair_waiting_for_computer">Confirm on your computer too…</string>
+    <string name="pair_cancelled_on_computer">Pairing was cancelled on the computer.</string>
+    <string name="pair_paired">Paired with your computer</string>
+    <string name="pair_paired_with">Paired with %1$s</string>
+    <string name="pair_pings">Encrypted pings answered: %1$d</string>
+    <string name="pair_unpair">Unpair</string>
     <string name="history_title">Past chats</string>
     <string name="history_empty">No past chats yet</string>
     <string name="history_delete">Delete</string>

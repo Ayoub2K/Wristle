@@ -62,6 +62,16 @@ These values identify the project; they are not secrets in the way a service acc
 3. On the computer: `node dist/cli.js relay test`. The bridge finds the watch, sends it a push, and waits for the watch to answer through Firestore. It prints the round-trip time.
 4. Try it once on Wi-Fi and once with the watch on LTE (or away from your Wi-Fi), if your watch has LTE.
 
+## 7. Pair the watch with your computer (P2-M2b)
+
+1. If you set up Firestore before pairing existed: publish the latest [`relay/firestore.rules`](../relay/firestore.rules) again (**Rules** tab → paste → **Publish**).
+2. On the watch: open **Code** (the right half of the start screen). It shows a code like `ABCD-EFGH`.
+3. On the computer: `node dist/cli.js pair ABCD-EFGH`.
+4. Both screens now show the same 6-digit security code. Check that they match, then confirm on the watch (✓) and on the computer (`y`). If they differ, cancel: someone else's key is in between.
+5. `node dist/cli.js ping` sends an encrypted ping; the watch opens it, answers, and counts it under **Code**.
+
+From here on Firestore only holds public keys and sealed messages: the keys to open them never leave the watch and the computer.
+
 ## Free-tier limits
 
 The Spark plan includes, per day, 50,000 Firestore reads and 20,000 writes. Push messages (FCM) are free. A busy day of approving and answering from the watch stays far below that.

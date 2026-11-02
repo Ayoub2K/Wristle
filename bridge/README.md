@@ -2,7 +2,7 @@
 
 Runs on your computer and connects Claude Code to the Wristle watch app. Works on Windows, macOS and Linux (Node.js 20+).
 
-**Status:** skeleton (phase 2, milestone P2-M1). It runs as a daemon and manages the list of folders where sessions may start. Pairing with the watch, the relay and Claude Code sessions come in later milestones; see [docs/phase-2-plan.md](../docs/phase-2-plan.md).
+**Status:** phase 2, milestone P2-M2b. It runs as a daemon, manages the list of folders where sessions may start, and pairs with the watch over your own Firebase relay with end-to-end encryption ([setup](../docs/firebase-setup.md)). Claude Code sessions come in later milestones; see [docs/phase-2-plan.md](../docs/phase-2-plan.md).
 
 ## Try it
 
@@ -15,7 +15,13 @@ node dist/cli.js projects add <path-to-a-project>
 node dist/cli.js serve          # keep this running
 node dist/cli.js status         # in a second terminal
 node dist/cli.js stop
+node dist/cli.js pair <code>    # the code shown under Code on the watch
+node dist/cli.js ping           # encrypted round trip to the watch
 ```
+
+## Encryption
+
+Pairing is an X25519 key exchange. HKDF-SHA256 turns the shared secret into one AES-256-GCM key per direction and a 6-digit security code that both screens show. Every message carries a sequence number (bound to the pairing and direction as authenticated data) and a timestamp, so replayed, reordered or stale messages are rejected. The watch implements the same protocol; [`relay/test-vectors.json`](../relay/test-vectors.json) (regenerate with `node scripts/vectors.mjs` after a build) keeps both sides byte-for-byte in step.
 
 ## Where things live
 
@@ -29,7 +35,7 @@ Set `WRISTLE_BRIDGE_HOME` to use another folder (the tests do this).
 ## Development
 
 ```bash
-npm test          # unit tests (paths per OS, project allowlist, daemon over IPC)
+npm test          # unit tests (paths per OS, project allowlist, daemon over IPC, crypto, pairing)
 npm run smoke     # builds must exist: runs the real CLI end to end
 ```
 

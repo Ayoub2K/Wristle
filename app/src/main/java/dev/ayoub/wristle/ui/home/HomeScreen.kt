@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.Icon
@@ -98,22 +97,3 @@ private fun Half(
 }
 
 private val DIVIDER_WIDTH = 6.dp
-
-@Composable
-fun CodeComingSoonScreen() {
-    Scaffold(timeText = { TimeText() }) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(text = "</>", color = Accent, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-            Text(
-                text = stringResource(R.string.code_coming_soon),
-                style = MaterialTheme.typography.body2,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 12.dp),
-            )
-        }
-    }
-}

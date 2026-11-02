@@ -9,13 +9,14 @@ import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
+import dev.ayoub.wristle.relay.PairingRepository
 import dev.ayoub.wristle.relay.RelayTestRepository
 import dev.ayoub.wristle.speech.ListeningState
 import dev.ayoub.wristle.ui.chat.ChatScreen
 import dev.ayoub.wristle.ui.chat.ChatViewModel
 import dev.ayoub.wristle.ui.chat.ListeningOverlay
+import dev.ayoub.wristle.ui.code.CodeScreen
 import dev.ayoub.wristle.ui.history.HistoryScreen
-import dev.ayoub.wristle.ui.home.CodeComingSoonScreen
 import dev.ayoub.wristle.ui.home.HomeScreen
 import dev.ayoub.wristle.ui.relay.RelayTestScreen
 import dev.ayoub.wristle.ui.settings.SettingsScreen
@@ -34,6 +35,7 @@ fun WristleApp(
     chatViewModel: ChatViewModel,
     settingsViewModel: SettingsViewModel,
     relayTestRepository: RelayTestRepository,
+    pairingRepository: PairingRepository,
     navigationRequest: NavigationRequest?,
     listeningState: StateFlow<ListeningState>,
     onFinishListening: () -> Unit,
@@ -68,7 +70,17 @@ fun WristleApp(
                         onSeen = chatViewModel::markSeen,
                     )
                 }
-                composable(Destination.CODE.name) { CodeComingSoonScreen() }
+                composable(Destination.CODE.name) {
+                    val state by pairingRepository.state.collectAsStateWithLifecycle()
+                    CodeScreen(
+                        state = state,
+                        onStartPairing = pairingRepository::startPairing,
+                        onCancelPairing = pairingRepository::cancelPairing,
+                        onConfirm = pairingRepository::confirm,
+                        onReject = pairingRepository::reject,
+                        onUnpair = pairingRepository::unpair,
+                    )
+                }
                 composable(Destination.HISTORY.name) {
                     val items by chatViewModel.history.collectAsStateWithLifecycle()
                     HistoryScreen(

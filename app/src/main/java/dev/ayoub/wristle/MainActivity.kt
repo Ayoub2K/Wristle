@@ -87,6 +87,7 @@ class MainActivity : ComponentActivity() {
                 chatViewModel = chatViewModel,
                 settingsViewModel = settingsViewModel,
                 relayTestRepository = container.relayTestRepository,
+                pairingRepository = container.pairingRepository,
                 navigationRequest = navigationRequest,
                 listeningState = inAppSpeech.state,
                 onFinishListening = inAppSpeech::finish,

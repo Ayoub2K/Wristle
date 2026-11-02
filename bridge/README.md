@@ -19,6 +19,8 @@ node dist/cli.js pair <code>    # the code shown under Code on the watch
 node dist/cli.js ping           # encrypted round trip to the watch
 ```
 
+To type `wristle-bridge` instead of `node dist/cli.js`, run `npm link` once in this folder. It points the global command at this checkout, so later `npm run build`s are picked up; `npm unlink -g wristle-bridge` removes it.
+
 ## Encryption
 
 Pairing is an X25519 key exchange. HKDF-SHA256 turns the shared secret into one AES-256-GCM key per direction and a 6-digit security code that both screens show. Every message carries a sequence number (bound to the pairing and direction as authenticated data) and a timestamp, so replayed, reordered or stale messages are rejected. The watch implements the same protocol; [`relay/test-vectors.json`](../relay/test-vectors.json) (regenerate with `node scripts/vectors.mjs` after a build) keeps both sides byte-for-byte in step.

@@ -84,7 +84,9 @@ Result on the owner's Galaxy Watch 4 over Wi-Fi, Firebase Spark plan, no Cloud F
 - Watch: Firebase is configured from `local.properties` (no `google-services.json`, no Google Services plugin), signs in anonymously, registers its FCM token, and answers pings (**Settings → Relay test**).
 - **Done when:** the ping round-trips between the PC and the watch over Wi-Fi. That proves the free-tier design (no Cloud Functions) and FCM on the standalone Watch 4. The owner's watch (SM-R870) has no LTE, so LTE is not tested.
 
-**P2-M2b: pairing and encryption** (built 2026-11-02; on-watch test pending)
+**P2-M2b: pairing and encryption** ✅ (verified 2026-11-02)
+
+Result on the owner's Galaxy Watch 4 and Windows PC: the codes matched on both screens, the bridge's encrypted hello reached the watch (it shows the computer's name) and `wristle-bridge ping` round-tripped encrypted.
 
 - Pairing: the watch shows a code, the bridge enters it, both show the same 6-digit security code.
 - Encrypted ping/pong between watch and bridge; the relay sees only ciphertext.

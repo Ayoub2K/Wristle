@@ -7,14 +7,14 @@ Instructions for AI coding agents working in this repository.
 Wristle is a voice-first assistant for the **Samsung Galaxy Watch 4** (Wear OS) that calls the Claude API directly from the watch. It is a hobby project by Ayoub (Android developer: Kotlin, Compose, Android Studio).
 
 - **Phase 1 (current):** standalone assistant on the watch. Plan and milestone status: [docs/phase-1-plan.md](docs/phase-1-plan.md).
-- **Phase 2 (later, do not build yet):** control a computer from the watch (approve commands, answer questions, dictate follow-ups) via a bridge on the computer. It must run on macOS, Windows **and** Linux.
+- **Phase 2 (current, planning done):** control Claude Code on a computer from the watch (approve tool use, answer questions, dictate follow-ups, start sessions, pause/resume) via a bridge on the computer. It must run on macOS, Windows **and** Linux. Plan, decisions and milestones: [docs/phase-2-plan.md](docs/phase-2-plan.md). Owner's decisions: **own bridge** (in `bridge/`, Node/TypeScript), **own Firebase relay** (in `relay/`), and **both** terminal sessions (hooks) and watch-started sessions (Agent SDK, API key).
 
 ## External references (agent context only)
 
 These repositories are named here for your context only. **Do not mention them anywhere else** in the repo: not in code, docs, the README or commit messages. The only exception is the copyright line that the MIT license requires in [LICENSE](LICENSE).
 
 - **mushinlab/claude-watch** (MIT): the phase 1 code is based on it.
-- **kayomarz97/wristpilot**: phase 2 inspiration. Its bridge and relay are MIT, but its Wear app is "all rights reserved": do not copy its code. Its bridge uses a Unix socket path, so it probably does not run on Windows as-is; verify before building on it.
+- **kayomarz97/wristpilot**: phase 2 inspiration only; the owner chose to build an own bridge. Its Wear app is "all rights reserved": do not copy its code. Verified 2026-11-02: its bridge daemon does not start on Windows (Unix socket file instead of a named pipe).
 - **caamanoluismiguel/ccwearos**: macOS only. Reference only.
 
 ## Communication
@@ -53,7 +53,17 @@ Requirements: Android SDK with platform 37, JDK 17+. `local.properties` needs `s
 ./gradlew :app:assembleRelease        # APK for the watch (release is much faster than debug)
 ```
 
-Run all four before handing a change over. Sideload steps for the watch are in the [README](README.md#install-on-the-galaxy-watch-4).
+Run all four before handing a change over.
+
+The computer bridge (`bridge/`, Node 20+, TypeScript) has its own checks; CI runs them on Windows, macOS and Linux:
+
+```bash
+cd bridge
+npm ci --ignore-scripts
+npm run build
+npm test                              # unit tests
+npm run smoke                         # end-to-end run of the built CLI
+``` Sideload steps for the watch are in the [README](README.md#install-on-the-galaxy-watch-4).
 
 ## Code layout
 

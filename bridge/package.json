@@ -1,0 +1,26 @@
+{
+  "name": "wristle-bridge",
+  "version": "0.1.0",
+  "description": "Bridge between Claude Code on your computer and the Wristle watch app.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "wristle-bridge": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.0"
+  }
+}

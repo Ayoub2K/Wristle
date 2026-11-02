@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,7 +21,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.wear.input.RemoteInputIntentHelper
+import dev.ayoub.wristle.speech.InAppSpeechInput
+import dev.ayoub.wristle.speech.ListeningState
 import dev.ayoub.wristle.speech.ReplySpeaker
+import dev.ayoub.wristle.speech.SpeechFailure
 import dev.ayoub.wristle.speech.SystemSpeechInput
 import dev.ayoub.wristle.ui.Destination
 import dev.ayoub.wristle.ui.NavigationRequest
@@ -37,7 +41,14 @@ class MainActivity : ComponentActivity() {
     private val speaker by lazy { ReplySpeaker(this) }
     private var navigationRequest by mutableStateOf<NavigationRequest?>(null)
 
+    // Fallback when in-app recognition isn't available or the microphone permission is refused.
     private val speechInput = SystemSpeechInput(this) { chatViewModel.send(it) }
+    private val inAppSpeech by lazy { InAppSpeechInput(this, onText = { chatViewModel.send(it) }, onFailure = ::onSpeechFailure) }
+
+    private val micPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) inAppSpeech.start() else speechInput.listen()
+        }
 
     private val keyInputLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -60,14 +71,15 @@ class MainActivity : ComponentActivity() {
                 if (container.settingsRepository.settings.value.speakReplies) speaker.warmUp()
                 launch { chatViewModel.replyProgress.collect { speaker.follow(it.id, it.text, it.done) } }
                 // Leaving the screen on keeps the activity started, so the reply is fully received and read out.
-                combine(chatViewModel.busy, speaker.speaking) { busy, speaking -> busy || speaking }
-                    .collect { keepOn ->
-                        if (keepOn) {
-                            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                        } else {
-                            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                        }
+                combine(chatViewModel.busy, speaker.speaking, inAppSpeech.state) { busy, speaking, listening ->
+                    busy || speaking || listening !is ListeningState.Idle
+                }.collect { keepOn ->
+                    if (keepOn) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     }
+                }
             }
         }
         setContent {
@@ -76,6 +88,9 @@ class MainActivity : ComponentActivity() {
                 settingsViewModel = settingsViewModel,
                 relayTestRepository = container.relayTestRepository,
                 navigationRequest = navigationRequest,
+                listeningState = inAppSpeech.state,
+                onFinishListening = inAppSpeech::finish,
+                onCancelListening = inAppSpeech::cancel,
                 onOpenChat = ::openChat,
                 onMic = ::listen,
                 onNewChat = {
@@ -86,6 +101,12 @@ class MainActivity : ComponentActivity() {
             )
         }
         if (savedInstanceState == null) handleLaunch(intent)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Never keep the microphone open in the background.
+        inAppSpeech.cancel()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -103,24 +124,25 @@ class MainActivity : ComponentActivity() {
                 intent?.getBooleanExtra(EXTRA_LISTEN, false) == true ||
                 !prompt.isNullOrBlank()
         when {
-            !chatViewModel.shouldStartFreshChat -> navigate(Destination.CHAT)
             !settingsViewModel.hasApiKey -> {
                 navigate(Destination.SETTINGS)
                 editApiKey()
             }
-            !listenNow -> navigate(Destination.HOME)
             !prompt.isNullOrBlank() -> {
                 navigate(Destination.CHAT)
                 chatViewModel.newChat()
                 chatViewModel.send(prompt)
             }
-            else -> openChat()
+            listenNow -> openChat()
+            // From the app list: show an unseen or still-running answer, otherwise the start screen.
+            !chatViewModel.shouldStartFreshChat -> navigate(Destination.CHAT)
+            else -> navigate(Destination.HOME)
         }
     }
 
+    /** Chat button, tile and Home key: always a new question; the previous chat goes to the history. */
     private fun openChat() {
         navigate(Destination.CHAT)
-        if (!chatViewModel.shouldStartFreshChat) return
         chatViewModel.newChat()
         if (shouldAskNotificationPermission()) {
             container.settingsRepository.markNotificationPermissionAsked()
@@ -142,7 +164,24 @@ class MainActivity : ComponentActivity() {
 
     private fun listen() {
         speaker.stop()
-        speechInput.listen()
+        when {
+            !inAppSpeech.available -> speechInput.listen()
+            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED ->
+                inAppSpeech.start()
+            else -> micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    private fun onSpeechFailure(failure: SpeechFailure) {
+        val message =
+            when (failure) {
+                SpeechFailure.NO_PERMISSION -> return speechInput.listen()
+                SpeechFailure.NO_MATCH -> R.string.speech_error_no_match
+                SpeechFailure.NETWORK -> R.string.speech_error_network
+                SpeechFailure.AUDIO -> R.string.speech_error_audio
+                SpeechFailure.OTHER -> R.string.speech_error_generic
+            }
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
     private fun editApiKey() {

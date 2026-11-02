@@ -1,5 +1,6 @@
 package dev.ayoub.wristle.ui
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -9,14 +10,17 @@ import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import dev.ayoub.wristle.relay.RelayTestRepository
+import dev.ayoub.wristle.speech.ListeningState
 import dev.ayoub.wristle.ui.chat.ChatScreen
 import dev.ayoub.wristle.ui.chat.ChatViewModel
+import dev.ayoub.wristle.ui.chat.ListeningOverlay
 import dev.ayoub.wristle.ui.history.HistoryScreen
 import dev.ayoub.wristle.ui.home.CodeComingSoonScreen
 import dev.ayoub.wristle.ui.home.HomeScreen
 import dev.ayoub.wristle.ui.relay.RelayTestScreen
 import dev.ayoub.wristle.ui.settings.SettingsScreen
 import dev.ayoub.wristle.ui.settings.SettingsViewModel
+import kotlinx.coroutines.flow.StateFlow
 
 enum class Destination { HOME, CHAT, CODE, HISTORY, SETTINGS, RELAY_TEST }
 
@@ -31,6 +35,9 @@ fun WristleApp(
     settingsViewModel: SettingsViewModel,
     relayTestRepository: RelayTestRepository,
     navigationRequest: NavigationRequest?,
+    listeningState: StateFlow<ListeningState>,
+    onFinishListening: () -> Unit,
+    onCancelListening: () -> Unit,
     onOpenChat: () -> Unit,
     onMic: () -> Unit,
     onNewChat: () -> Unit,
@@ -44,50 +51,54 @@ fun WristleApp(
             navController.popBackStack(Destination.HOME.name, inclusive = false)
             if (request.destination != Destination.HOME) navController.navigate(request.destination.name)
         }
-        SwipeDismissableNavHost(navController = navController, startDestination = Destination.HOME.name) {
-            composable(Destination.HOME.name) {
-                HomeScreen(onChat = onOpenChat, onCode = { navController.navigate(Destination.CODE.name) })
+        Box {
+            SwipeDismissableNavHost(navController = navController, startDestination = Destination.HOME.name) {
+                composable(Destination.HOME.name) {
+                    HomeScreen(onChat = onOpenChat, onCode = { navController.navigate(Destination.CODE.name) })
+                }
+                composable(Destination.CHAT.name) {
+                    val state by chatViewModel.uiState.collectAsStateWithLifecycle()
+                    ChatScreen(
+                        state = state,
+                        onMic = onMic,
+                        onNewChat = onNewChat,
+                        onRetry = chatViewModel::retry,
+                        onSettings = { navController.navigate(Destination.SETTINGS.name) },
+                        onHistory = { navController.navigate(Destination.HISTORY.name) },
+                        onSeen = chatViewModel::markSeen,
+                    )
+                }
+                composable(Destination.CODE.name) { CodeComingSoonScreen() }
+                composable(Destination.HISTORY.name) {
+                    val items by chatViewModel.history.collectAsStateWithLifecycle()
+                    HistoryScreen(
+                        items = items,
+                        onOpen = { index ->
+                            chatViewModel.openFromHistory(index)
+                            navController.popBackStack()
+                        },
+                    )
+                }
+                composable(Destination.SETTINGS.name) {
+                    val state by settingsViewModel.uiState.collectAsStateWithLifecycle()
+                    SettingsScreen(
+                        state = state,
+                        onCycleModel = settingsViewModel::cycleModel,
+                        onCycleEffort = settingsViewModel::cycleEffort,
+                        onSpeakChange = settingsViewModel::setSpeakReplies,
+                        onLongRepliesChange = settingsViewModel::setLongReplies,
+                        onEditKey = onEditKey,
+                        onRelayTest = { navController.navigate(Destination.RELAY_TEST.name) },
+                        onDone = { navController.popBackStack() },
+                    )
+                }
+                composable(Destination.RELAY_TEST.name) {
+                    val state by relayTestRepository.state.collectAsStateWithLifecycle()
+                    RelayTestScreen(state = state, onStart = relayTestRepository::start)
+                }
             }
-            composable(Destination.CHAT.name) {
-                val state by chatViewModel.uiState.collectAsStateWithLifecycle()
-                ChatScreen(
-                    state = state,
-                    onMic = onMic,
-                    onNewChat = onNewChat,
-                    onRetry = chatViewModel::retry,
-                    onSettings = { navController.navigate(Destination.SETTINGS.name) },
-                    onHistory = { navController.navigate(Destination.HISTORY.name) },
-                    onSeen = chatViewModel::markSeen,
-                )
-            }
-            composable(Destination.CODE.name) { CodeComingSoonScreen() }
-            composable(Destination.HISTORY.name) {
-                val items by chatViewModel.history.collectAsStateWithLifecycle()
-                HistoryScreen(
-                    items = items,
-                    onOpen = { index ->
-                        chatViewModel.openFromHistory(index)
-                        navController.popBackStack()
-                    },
-                )
-            }
-            composable(Destination.SETTINGS.name) {
-                val state by settingsViewModel.uiState.collectAsStateWithLifecycle()
-                SettingsScreen(
-                    state = state,
-                    onCycleModel = settingsViewModel::cycleModel,
-                    onCycleEffort = settingsViewModel::cycleEffort,
-                    onSpeakChange = settingsViewModel::setSpeakReplies,
-                    onLongRepliesChange = settingsViewModel::setLongReplies,
-                    onEditKey = onEditKey,
-                    onRelayTest = { navController.navigate(Destination.RELAY_TEST.name) },
-                    onDone = { navController.popBackStack() },
-                )
-            }
-            composable(Destination.RELAY_TEST.name) {
-                val state by relayTestRepository.state.collectAsStateWithLifecycle()
-                RelayTestScreen(state = state, onStart = relayTestRepository::start)
-            }
+            val listening by listeningState.collectAsStateWithLifecycle()
+            ListeningOverlay(state = listening, onFinish = onFinishListening, onCancel = onCancelListening)
         }
     }
 }

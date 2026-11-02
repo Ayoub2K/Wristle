@@ -13,6 +13,15 @@ if (keystorePropertiesFile.exists()) {
 }
 val releaseStorePath = keystoreProperties.getProperty("storeFile") ?: "release.keystore"
 
+// Firebase (phase 2 relay) is configured from local.properties, see docs/firebase-setup.md. Empty values disable it.
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
+}
+
+fun firebaseField(key: String): String = "\"" + (localProperties.getProperty("firebase.$key") ?: "") + "\""
+
 android {
     namespace = "dev.ayoub.wristle"
     compileSdk = 37
@@ -23,6 +32,10 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1"
+        buildConfigField("String", "FIREBASE_PROJECT_ID", firebaseField("projectId"))
+        buildConfigField("String", "FIREBASE_APP_ID", firebaseField("appId"))
+        buildConfigField("String", "FIREBASE_API_KEY", firebaseField("apiKey"))
+        buildConfigField("String", "FIREBASE_SENDER_ID", firebaseField("senderId"))
     }
 
     signingConfigs {
@@ -93,6 +106,12 @@ dependencies {
     implementation(libs.wear.protolayout)
     implementation(libs.wear.protolayout.material)
     implementation(libs.concurrent.futures)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.messaging)
+    implementation(libs.coroutines.play.services)
+    implementation(libs.fragment)
     implementation(libs.activity.compose)
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.viewmodel.compose)

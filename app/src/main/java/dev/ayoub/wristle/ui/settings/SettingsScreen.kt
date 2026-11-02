@@ -31,6 +31,7 @@ fun SettingsScreen(
     onSpeakChange: (Boolean) -> Unit,
     onLongRepliesChange: (Boolean) -> Unit,
     onEditKey: () -> Unit,
+    onRelayTest: () -> Unit,
     onDone: () -> Unit,
 ) {
     val listState = rememberScalingLazyListState()
@@ -101,6 +102,14 @@ fun SettingsScreen(
                         )
                     },
                     onClick = onEditKey,
+                    colors = ChipDefaults.secondaryChipColors(),
+                )
+            }
+            item {
+                Chip(
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.relay_test_title)) },
+                    onClick = onRelayTest,
                     colors = ChipDefaults.secondaryChipColors(),
                 )
             }

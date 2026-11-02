@@ -7,6 +7,7 @@ import { startDaemon } from "./daemon.js";
 import { DaemonAlreadyRunningError, isListening, request } from "./ipc.js";
 import { createLogger } from "./log.js";
 import { configDir, ipcPath, logFile } from "./paths.js";
+import { checkRelay, credentialsFile, installServiceAccount, loadServiceAccount, pingWatch, RelayError } from "./relay.js";
 import { VERSION } from "./version.js";
 
 const EXIT = { ok: 0, error: 1, usage: 2, notRunning: 3 } as const;
@@ -20,6 +21,8 @@ Usage:
   wristle-bridge projects list            list folders where sessions may start
   wristle-bridge projects add <dir> [name]
   wristle-bridge projects remove <id|name|dir>
+  wristle-bridge relay setup <key.json>   store the Firebase service account key and check it
+  wristle-bridge relay test               push a ping to the watch and wait for its answer
   wristle-bridge doctor                   check this computer's setup
   wristle-bridge help`;
 
@@ -98,6 +101,29 @@ function projects(args: string[]): number {
   }
 }
 
+async function relay(args: string[]): Promise<number> {
+  const [sub, file] = args;
+  switch (sub) {
+    case "setup": {
+      if (!file) return usage("relay setup needs the path to the downloaded service account key");
+      const account = installServiceAccount(file);
+      console.log(`stored key for project ${account.project_id} in ${credentialsFile()}`);
+      await checkRelay(account);
+      console.log("✓ Firestore reachable; you can delete the downloaded key file now");
+      return EXIT.ok;
+    }
+    case "test": {
+      const account = loadServiceAccount();
+      console.log("pinging the watch… (keep Settings → Relay test open on the watch)");
+      const result = await pingWatch(60_000, account);
+      console.log(`✓ watch ${result.watchId.slice(0, 8)} answered in ${result.roundTripMs} ms`);
+      return EXIT.ok;
+    }
+    default:
+      return usage(`unknown relay command: ${sub ?? ""}`);
+  }
+}
+
 async function doctor(): Promise<number> {
   let problems = 0;
   const check = (ok: boolean, label: string, detail: string) => {
@@ -119,6 +145,7 @@ async function doctor(): Promise<number> {
   console.log(`  ipc: ${ipcPath()}`);
   console.log(`  daemon: ${(await isListening()) ? "running" : "not running"}`);
   console.log(`  allowed projects: ${loadConfig().projects.length}`);
+  console.log(`  Firebase key: ${fs.existsSync(credentialsFile()) ? "stored" : "not set up (see docs/firebase-setup.md)"}`);
   // `claude` can be a .cmd shim on Windows, which needs a shell; a fixed command string avoids passing args through it.
   const claude =
     process.platform === "win32"
@@ -147,6 +174,8 @@ async function main(argv: string[]): Promise<number> {
       return stop();
     case "projects":
       return projects(args);
+    case "relay":
+      return relay(args);
     case "doctor":
       return doctor();
     case "--version":
@@ -169,7 +198,7 @@ main(process.argv.slice(2)).then(
     process.exitCode = code;
   },
   (e: unknown) => {
-    console.error(e instanceof ConfigError ? e.message : e);
+    console.error(e instanceof ConfigError || e instanceof RelayError ? e.message : e);
     process.exitCode = EXIT.error;
   },
 );

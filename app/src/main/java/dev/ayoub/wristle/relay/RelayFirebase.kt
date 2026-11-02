@@ -1,0 +1,35 @@
+package dev.ayoub.wristle.relay
+
+import android.content.Context
+import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseOptions
+import dev.ayoub.wristle.BuildConfig
+
+/**
+ * Sets up the owner's Firebase project from build config (local.properties) instead of google-services.json,
+ * so the public repo builds without it and the relay is simply off when it isn't configured.
+ */
+object RelayFirebase {
+    val configured: Boolean
+        get() =
+            listOf(
+                BuildConfig.FIREBASE_PROJECT_ID,
+                BuildConfig.FIREBASE_APP_ID,
+                BuildConfig.FIREBASE_API_KEY,
+                BuildConfig.FIREBASE_SENDER_ID,
+            ).all { it.isNotBlank() }
+
+    fun init(context: Context) {
+        if (!configured || FirebaseApp.getApps(context).isNotEmpty()) return
+        FirebaseApp.initializeApp(
+            context,
+            FirebaseOptions
+                .Builder()
+                .setProjectId(BuildConfig.FIREBASE_PROJECT_ID)
+                .setApplicationId(BuildConfig.FIREBASE_APP_ID)
+                .setApiKey(BuildConfig.FIREBASE_API_KEY)
+                .setGcmSenderId(BuildConfig.FIREBASE_SENDER_ID)
+                .build(),
+        )
+    }
+}

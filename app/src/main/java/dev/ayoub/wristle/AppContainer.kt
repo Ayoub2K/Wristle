@@ -6,6 +6,7 @@ import dev.ayoub.wristle.data.ChatRepository
 import dev.ayoub.wristle.data.ChatStore
 import dev.ayoub.wristle.data.SecretCipher
 import dev.ayoub.wristle.data.SettingsRepository
+import dev.ayoub.wristle.relay.RelayTestRepository
 import dev.ayoub.wristle.service.ChatRequestService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,4 +29,6 @@ class AppContainer(
             scope = appScope,
             onRequestStarted = { ChatRequestService.start(appContext) },
         )
+
+    val relayTestRepository = RelayTestRepository(appScope)
 }

@@ -8,15 +8,17 @@ import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
+import dev.ayoub.wristle.relay.RelayTestRepository
 import dev.ayoub.wristle.ui.chat.ChatScreen
 import dev.ayoub.wristle.ui.chat.ChatViewModel
 import dev.ayoub.wristle.ui.history.HistoryScreen
 import dev.ayoub.wristle.ui.home.CodeComingSoonScreen
 import dev.ayoub.wristle.ui.home.HomeScreen
+import dev.ayoub.wristle.ui.relay.RelayTestScreen
 import dev.ayoub.wristle.ui.settings.SettingsScreen
 import dev.ayoub.wristle.ui.settings.SettingsViewModel
 
-enum class Destination { HOME, CHAT, CODE, HISTORY, SETTINGS }
+enum class Destination { HOME, CHAT, CODE, HISTORY, SETTINGS, RELAY_TEST }
 
 data class NavigationRequest(
     val destination: Destination,
@@ -27,6 +29,7 @@ data class NavigationRequest(
 fun WristleApp(
     chatViewModel: ChatViewModel,
     settingsViewModel: SettingsViewModel,
+    relayTestRepository: RelayTestRepository,
     navigationRequest: NavigationRequest?,
     onOpenChat: () -> Unit,
     onMic: () -> Unit,
@@ -77,8 +80,13 @@ fun WristleApp(
                     onSpeakChange = settingsViewModel::setSpeakReplies,
                     onLongRepliesChange = settingsViewModel::setLongReplies,
                     onEditKey = onEditKey,
+                    onRelayTest = { navController.navigate(Destination.RELAY_TEST.name) },
                     onDone = { navController.popBackStack() },
                 )
+            }
+            composable(Destination.RELAY_TEST.name) {
+                val state by relayTestRepository.state.collectAsStateWithLifecycle()
+                RelayTestScreen(state = state, onStart = relayTestRepository::start)
             }
         }
     }

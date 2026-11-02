@@ -60,9 +60,9 @@ Same as phase 1 (small milestones testable on the watch, ask before big choices,
 
 Each milestone ends in something the owner can run or test.
 
-### P2-M1: Bridge skeleton on all three operating systems (code done 2026-11-02; CI to confirm)
+### P2-M1: Bridge skeleton on all three operating systems ✅ (2026-11-02)
 
-Status: unit tests (16) and the end-to-end smoke test pass on the owner's Windows PC (Node 24, named pipe). macOS and Linux are covered by CI once it runs on GitHub.
+Status: unit tests (16) and the end-to-end smoke test pass on the owner's Windows PC (Node 24, named pipe) and in CI on Windows, macOS and Linux with Node 20 and 22 (all 6 jobs green).
 
 - `bridge/` package: CLI (`wristle-bridge serve | status | stop | projects add/list/remove | doctor`).
 - Cross-platform config paths, IPC (named pipe / Unix socket), daemon start and stop without POSIX signals, logs.
@@ -73,11 +73,23 @@ Status: unit tests (16) and the end-to-end smoke test pass on the owner's Window
 
 ### P2-M2: Relay and pairing
 
-- Firebase setup guide for the owner (project, Firestore, FCM, security rules), verifying the free-tier design above.
-- Pairing: the watch shows a code, the bridge enters it, both show the same 6-digit security code.
-- Encrypted ping/pong between watch and bridge.
+Split in two, so the relay design is proven before anything is built on it.
 
-**Done when:** the watch and the PC pair, and an encrypted test message round-trips on Wi-Fi and on LTE.
+**P2-M2a: relay test** ✅ (verified 2026-11-02)
+
+Result on the owner's Galaxy Watch 4 over Wi-Fi, Firebase Spark plan, no Cloud Functions: the bridge's FCM push reached the watch and the pong came back through Firestore in **616–811 ms** with the app open, and with the app in the background and the screen off; **1,056 ms** after two minutes of sleep. The free-tier design works and FCM works on the standalone Watch 4.
+
+- [docs/firebase-setup.md](firebase-setup.md): the owner creates the Firebase project (Spark plan), Firestore with [`relay/firestore.rules`](../relay/firestore.rules), anonymous sign-in, and a service account key for the bridge.
+- Bridge: `wristle-bridge relay setup <key.json>` stores the key in the config folder; `wristle-bridge relay test` pushes a ping to the watch via FCM and waits for the pong in Firestore.
+- Watch: Firebase is configured from `local.properties` (no `google-services.json`, no Google Services plugin), signs in anonymously, registers its FCM token, and answers pings (**Settings → Relay test**).
+- **Done when:** the ping round-trips between the PC and the watch over Wi-Fi. That proves the free-tier design (no Cloud Functions) and FCM on the standalone Watch 4. The owner's watch (SM-R870) has no LTE, so LTE is not tested.
+
+**P2-M2b: pairing and encryption**
+
+- Pairing: the watch shows a code, the bridge enters it, both show the same 6-digit security code.
+- Encrypted ping/pong between watch and bridge; the relay sees only ciphertext.
+
+**Done when:** the watch and the PC pair and an encrypted test message round-trips.
 
 ### P2-M3: Watch-started sessions, read-only
 
@@ -108,8 +120,8 @@ Status: unit tests (16) and the end-to-end smoke test pass on the owner's Window
 
 | Risk | Mitigation |
 |---|---|
-| Free-tier Firebase design doesn't work without Cloud Functions | Verify in P2-M2 before building on it; fallback: Blaze plan with a spending cap, or a different relay |
-| FCM doesn't deliver to the standalone Watch 4 | Test in P2-M2; fallback: poll while the *Code* screen is open |
+| Free-tier Firebase design doesn't work without Cloud Functions | Resolved in P2-M2a: it works on the Spark plan |
+| FCM doesn't deliver to the standalone Watch 4 | Resolved in P2-M2a: pushes arrive in under a second, also with the screen off |
 | Hooks behave differently per OS or Claude Code version | CI on three operating systems; keep the hook side small |
 | API costs of watch-started sessions | Default to a cheaper model; show the model on the watch; spending limit in the Claude Console |
 | A malicious or mistaken approval runs something harmful | Allowlisted folders only, deny on timeout, show the exact command before approving |

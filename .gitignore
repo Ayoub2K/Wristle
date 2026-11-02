@@ -30,3 +30,8 @@ Thumbs.db
 
 # Bridge build output
 bridge/dist/
+
+# Firebase keys (phase 2 relay): never commit
+google-services.json
+*service-account*.json
+*-firebase-adminsdk-*.json

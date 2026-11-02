@@ -74,6 +74,7 @@ class MainActivity : ComponentActivity() {
             WristleApp(
                 chatViewModel = chatViewModel,
                 settingsViewModel = settingsViewModel,
+                relayTestRepository = container.relayTestRepository,
                 navigationRequest = navigationRequest,
                 onOpenChat = ::openChat,
                 onMic = ::listen,

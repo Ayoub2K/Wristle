@@ -1,0 +1,17 @@
+rules_version = '2';
+
+// The bridge uses the Admin SDK (service account) and is not bound by these rules.
+// The watch signs in anonymously and may only touch its own documents.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // P2-M2a relay test: one document per watch, keyed by its anonymous user id.
+    match /tests/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Everything else is closed until pairing (P2-M2b) adds its own rules.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

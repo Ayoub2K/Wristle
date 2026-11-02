@@ -22,6 +22,15 @@
     <string name="history_title">Past chats</string>
     <string name="history_empty">No past chats yet</string>
 
+    <string name="relay_test_title">Relay test</string>
+    <string name="relay_not_configured">Firebase is not set up in this build. See docs/firebase-setup.md.</string>
+    <string name="relay_connecting">Connecting…</string>
+    <string name="relay_ready">Ready. Run `wristle-bridge relay test` on your computer.</string>
+    <string name="relay_watch_id">Watch %1$s</string>
+    <string name="relay_pings">Pings answered: %1$d</string>
+    <string name="relay_failed">Failed: %1$s</string>
+    <string name="relay_retry">Try again</string>
+
     <string name="error_no_api_key">No API key set. Open settings.</string>
     <string name="error_unauthorized">Key rejected (401). Check the API key.</string>
     <string name="error_api">API error %1$s</string>

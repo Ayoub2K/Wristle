@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="./docs/logo.svg" alt="Wristle logo" width="128" />
+
 # Wristle
 
 **A voice-first Claude assistant that lives on your wrist.**

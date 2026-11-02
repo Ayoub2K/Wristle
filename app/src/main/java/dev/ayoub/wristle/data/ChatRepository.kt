@@ -64,6 +64,12 @@ class ChatRepository(
         update(chosen)
     }
 
+    fun deleteFromHistory(index: Int) {
+        if (index !in historyState.value.indices) return
+        historyState.value = historyState.value.filterIndexed { i, _ -> i != index }
+        persistHistory()
+    }
+
     private fun archive(session: ChatSession) {
         val updated = historyState.value.withArchived(session)
         if (updated == historyState.value) return

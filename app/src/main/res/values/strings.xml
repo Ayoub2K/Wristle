@@ -24,6 +24,7 @@
     <string name="code_coming_soon">Controlling your computer is coming in a later version.</string>
     <string name="history_title">Past chats</string>
     <string name="history_empty">No past chats yet</string>
+    <string name="history_delete">Delete</string>
 
     <string name="relay_test_title">Relay test</string>
     <string name="relay_not_configured">Firebase is not set up in this build. See docs/firebase-setup.md.</string>

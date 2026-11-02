@@ -73,6 +73,7 @@ class ChatViewModel(
             .map { chats ->
                 chats.map { session ->
                     HistoryItem(
+                        startedAt = session.startedAt,
                         title =
                             session.messages
                                 .firstOrNull { it.fromUser }
@@ -84,6 +85,8 @@ class ChatViewModel(
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
 
     fun openFromHistory(index: Int) = chat.openFromHistory(index)
+
+    fun deleteFromHistory(index: Int) = chat.deleteFromHistory(index)
 
     val shouldStartFreshChat: Boolean get() = chat.session.value.shouldStartFreshChat
 

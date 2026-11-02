@@ -77,6 +77,7 @@ fun WristleApp(
                             chatViewModel.openFromHistory(index)
                             navController.popBackStack()
                         },
+                        onDelete = chatViewModel::deleteFromHistory,
                     )
                 }
                 composable(Destination.SETTINGS.name) {

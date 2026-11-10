@@ -104,7 +104,7 @@ use the tile.
 ## How it works
 
 ```
-┌──────────────────┐   voice   ┌───────────────────────────────┐   HTTPS + SSE   ┌──────────────────┐
+┌──────────────────┐   voice   ┌───────────────────────────────┐  HTTPS + SSE   ┌──────────────────┐
 │ Watch recognizer │ ────────▶ │  Wristle (Wear OS app)        │ ─────────────▶ │  Claude API      │
 │ (Google)         │   text    │  speech/  → chat/ → data/     │ ◀───────────── │  /v1/messages    │
 └──────────────────┘           │  ChatBackend: ClaudeApiBackend│   streamed     │  + web search    │

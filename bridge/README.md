@@ -17,7 +17,7 @@ wristle setup
 `setup` first asks, with the arrow keys, what to set up:
 
 - **Chat**: only puts your Claude API key on the watch. The key is checked against the API, then sent over adb (it finds the watch on your Wi-Fi and helps pair adb if needed), or through the bridge when the watch is already paired.
-- **Code**: walks through everything in one go: the Firebase relay key, your Claude API key (checked against the API and saved in the bridge config), the folders the watch may start sessions in, pairing with the watch (open **Code** on the watch for the code) and sending the API key to the watch, so it never has to be typed there. It ends by starting the bridge in that window.
+- **Code**: walks through everything in one go: the Firebase relay (it explains the few browser steps and does the rest itself: rules, anonymous sign-in, registering the watch app, its config in `local.properties`, and optionally building and installing the watch app), your Claude API key (checked against the API and saved in the bridge config), the folders the watch may start sessions in, pairing with the watch (open **Code** on the watch for the code) and sending the API key to the watch, so it never has to be typed there. It ends by starting the bridge in that window.
 
 ## All commands
 

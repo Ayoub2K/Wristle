@@ -2,7 +2,9 @@
 
 The relay between your computer and your watch runs in **your own** Firebase project. The design stays on the free **Spark** plan: no Cloud Functions, no billing account.
 
-You need a Google account. It takes about 10 minutes. Firebase console labels change from time to time; the steps below describe what to look for.
+You need a Google account. Firebase console labels change from time to time; the steps below describe what to look for.
+
+**Easiest: run `wristle setup` and pick Code.** It explains the few steps that need a browser (create the project, download the service account key, create the Firestore database, click *Get started* under Authentication) and does the rest with the key: it publishes `relay/firestore.rules`, turns on anonymous sign-in, registers the watch app, writes its four values into `local.properties` and offers to build and install the watch app. The steps below are the manual route, and what setup does for you.
 
 ## 1. Create the project
 

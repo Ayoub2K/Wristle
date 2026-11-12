@@ -47,11 +47,22 @@ export function loadServiceAccount(): ServiceAccount {
 }
 
 // firebase-admin is loaded lazily so commands that don't need the relay stay fast.
-export async function connect(account: ServiceAccount = loadServiceAccount()) {
+export async function firebaseApp(account: ServiceAccount = loadServiceAccount()) {
   const { cert, getApps, initializeApp } = await import("firebase-admin/app");
+  const apps = getApps();
+  // A newly installed key (setup) must not keep talking to the project of an older one.
+  const match = apps.find((app) => app.options.projectId === account.project_id);
+  if (match) return match;
+  return initializeApp(
+    { projectId: account.project_id, credential: cert({ projectId: account.project_id, clientEmail: account.client_email, privateKey: account.private_key }) },
+    apps.length > 0 ? `wristle-${account.project_id}` : undefined,
+  );
+}
+
+export async function connect(account: ServiceAccount = loadServiceAccount()) {
   const { getFirestore } = await import("firebase-admin/firestore");
   const { getMessaging } = await import("firebase-admin/messaging");
-  const app = getApps()[0] ?? initializeApp({ credential: cert({ projectId: account.project_id, clientEmail: account.client_email, privateKey: account.private_key }) });
+  const app = await firebaseApp(account);
   return { db: getFirestore(app), messaging: getMessaging(app) };
 }
 

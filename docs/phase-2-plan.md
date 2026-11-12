@@ -115,6 +115,7 @@ Built and verified on the owner's Galaxy Watch 4 and Windows PC on 2026-11-02: a
 - `wristle setup` is a guided terminal setup (relay key, Claude API key checked against the API and stored in the bridge config, allowed projects, pairing, then optionally starts the daemon). The stored key wins over `ANTHROPIC_API_KEY` (used only when nothing is stored), so a revoked key left in the environment can't shadow the one setup checked.
 - The bridge can send its API key to the watch as an `apiKey` message over the encrypted mailbox (`setup` offers it, `wristle key send` resends it); the watch stores it like a typed key. The adb `setup-key` scripts stay as an alternative.
 - Without a key, the watch opens on a screen that explains the three ways in, instead of the keyboard.
+- Firebase in `wristle setup`: only the browser-only steps are manual and explained (project, service account key, Firestore database, Authentication *Get started*); with the key, setup publishes the rules, enables anonymous sign-in, registers the watch app, writes `local.properties` and can build and install the app.
 
 ### P2-M4: Approvals and questions
 

@@ -2,13 +2,16 @@
  * `wristle setup`: one guided run through everything the bridge needs (relay key, Claude API key,
  * allowed projects, pairing with the watch) and the API key's trip to the watch, so nothing has to be typed there.
  */
+import { spawn } from "node:child_process";
 import fs from "node:fs";
+import path from "node:path";
 import * as p from "@clack/prompts";
-import { connect, type Device, discoverWireless, findAdb, isInstalled, isSafeKey, listDevices, pairDevice, sendKey } from "./adb.js";
+import { connect, type Device, discoverWireless, findAdb, installApk, isInstalled, isSafeKey, listDevices, pairDevice, sendKey, WATCH_PACKAGE } from "./adb.js";
 import { addProject, loadConfig, maskApiKey, resolveApiKey, saveConfig } from "./config.js";
 import { isListening, request } from "./ipc.js";
 import { loadPairing, Mailbox, normalizeCode, pair, send, unpair } from "./pairing.js";
-import { checkRelay, connect as connectRelay, credentialsFile, installServiceAccount, loadServiceAccount, RelayError } from "./relay.js";
+import { consoleUrl, enableAnonymousAuth, fetchWatchConfig, parseGoogleServices, repoRoot, syncRules, type WatchFirebaseConfig, writeLocalProperties } from "./firebase.js";
+import { checkRelay, connect as connectRelay, credentialsFile, installServiceAccount, loadServiceAccount, RelayError, type ServiceAccount } from "./relay.js";
 
 /** The user pressed Ctrl+C or Esc in a prompt. */
 export class SetupCancelled extends Error {}
@@ -190,29 +193,182 @@ async function checkExistingPairing(): Promise<boolean> {
   return false;
 }
 
-async function relayStep(): Promise<void> {
-  if (fs.existsSync(credentialsFile())) {
-    p.log.success(`Relay ${dim(`Firebase project ${loadServiceAccount().project_id}`)}`);
+/** Builds the release APK in this checkout and installs it on the watch over adb. */
+async function buildAndInstallWatchApp(root: string): Promise<void> {
+  const spin = p.spinner();
+  spin.start("Building the watch app (this takes a few minutes)");
+  // A fixed command line: Windows needs a shell to run gradlew.bat.
+  const child =
+    process.platform === "win32"
+      ? spawn("gradlew.bat :app:assembleRelease", { cwd: root, shell: true })
+      : spawn("./gradlew", [":app:assembleRelease"], { cwd: root });
+  let output = "";
+  child.stdout?.on("data", (chunk: Buffer) => (output += chunk.toString()));
+  child.stderr?.on("data", (chunk: Buffer) => (output += chunk.toString()));
+  const code = await new Promise<number | null>((resolve) => {
+    child.on("close", resolve);
+    child.on("error", () => resolve(-1));
+  });
+  if (code !== 0) {
+    spin.error("The build failed");
+    p.log.message(dim(output.trim().split(/\r?\n/).slice(-12).join("\n")));
+    p.log.info("Fix the build (see the README), then run setup again.");
     return;
   }
-  p.note(
-    "The bridge reaches the watch through your own Firebase project.\nDownload a service account key as described in docs/firebase-setup.md.",
-    "Firebase",
-  );
-  for (;;) {
-    const file = unquote(answer(await p.path({ message: "Service account key (.json)", directory: false })));
-    const spin = p.spinner();
-    spin.start("Checking Firestore");
-    try {
-      const account = installServiceAccount(file);
-      await checkRelay(account);
-      spin.stop(`Firestore reachable ${dim(`(project ${account.project_id})`)}`);
-      p.log.info(dim("You can delete the downloaded key file now; the bridge keeps its own copy."));
-      return;
-    } catch (e) {
-      spin.error(errorText(e));
+  spin.stop("Built");
+  const watch = await connectWatchOverAdb("install the app later yourself");
+  if (!watch) return;
+  const install = p.spinner();
+  install.start(`Installing on ${watch.device.model}`);
+  const result = installApk(watch.adb, watch.device.serial, path.join(root, "app", "build", "outputs", "apk", "release", "app-release.apk"));
+  if (result.ok) install.stop(`Installed on ${watch.device.model}`);
+  else install.error(`Install failed: ${result.message}`);
+}
+
+async function waitForManualStep(): Promise<void> {
+  answer(await p.select({ message: "Done in the browser?", options: [{ value: true, label: "Done, check again" }] }));
+}
+
+/**
+ * Your own Firebase project is the relay. Only what needs a browser is manual (project, key, database,
+ * starting Authentication); everything else is done with the key: rules, anonymous sign-in, the watch config.
+ */
+async function firebaseStep(): Promise<void> {
+  let account: ServiceAccount;
+  if (fs.existsSync(credentialsFile())) {
+    account = loadServiceAccount();
+    p.log.success(`Firebase project ${account.project_id}`);
+  } else {
+    p.note(
+      [
+        "The watch and this computer talk through your own Firebase project (free).",
+        "Two steps in the browser; setup does the rest:",
+        "",
+        `${accent("1")}  ${accent("https://console.firebase.google.com")} → ${bold("Create a project")}.`,
+        "   Any name, Google Analytics off, stay on the free Spark plan.",
+        `${accent("2")}  In the project: ${bold("⚙ Project settings → Service accounts")}`,
+        `   → ${bold("Generate new private key")}. A .json file downloads.`,
+        "",
+        dim("That file gives full access to the project: keep it private, never commit it."),
+      ].join("\n"),
+      "Firebase · in your browser",
+    );
+    for (;;) {
+      const file = unquote(answer(await p.path({ message: "The downloaded key (.json)", directory: false })));
+      try {
+        account = installServiceAccount(file);
+        p.log.success(`Key stored for project ${account.project_id} ${dim("(you can delete the download)")}`);
+        break;
+      } catch (e) {
+        p.log.error(errorText(e));
+      }
     }
   }
+  const id = account.project_id;
+
+  // The database can only be created in the console: it needs a location, which is fixed afterwards.
+  for (;;) {
+    const spin = p.spinner();
+    spin.start("Checking the Firestore database");
+    try {
+      await checkRelay(account);
+      spin.stop("Firestore database ready");
+      break;
+    } catch (e) {
+      const missing = /NOT_FOUND|does not exist|has not been used|is disabled/i.test(errorText(e));
+      spin.error(missing ? "No Firestore database yet" : errorText(e));
+      p.note(
+        [
+          `Open ${accent(consoleUrl(id, "firestore"))}`,
+          `→ ${bold("Create database")} → ${bold("Production mode")} → a location near you.`,
+          dim("The location is fixed afterwards. Setup publishes the rules for you."),
+        ].join("\n"),
+        "Firestore · in your browser",
+      );
+      await waitForManualStep();
+    }
+  }
+
+  const rules = p.spinner();
+  rules.start("Publishing the Firestore rules");
+  try {
+    rules.stop((await syncRules(account)) === "published" ? "Firestore rules published" : "Firestore rules up to date");
+  } catch (e) {
+    rules.error(`Could not publish the rules: ${errorText(e)}`);
+    p.note(`Open ${accent(consoleUrl(id, "firestore/rules"))}, paste relay/firestore.rules and click ${bold("Publish")}.`, "Rules · by hand");
+  }
+
+  for (;;) {
+    const spin = p.spinner();
+    spin.start("Turning on anonymous sign-in for the watch");
+    try {
+      const result = await enableAnonymousAuth(account);
+      if (result !== "not-started") {
+        spin.stop(result === "enabled" ? "Anonymous sign-in turned on" : "Anonymous sign-in is on");
+        break;
+      }
+      spin.error("Authentication is not set up in this project yet");
+      p.note(`Open ${accent(consoleUrl(id, "authentication"))} and click ${bold("Get started")}. Nothing else.`, "Authentication · in your browser");
+      await waitForManualStep();
+    } catch (e) {
+      spin.error(errorText(e));
+      p.note(
+        `Open ${accent(consoleUrl(id, "authentication/providers"))} → ${bold("Anonymous")} → ${bold("Enable")} → ${bold("Save")}.`,
+        "Anonymous sign-in · by hand",
+      );
+      await waitForManualStep();
+      break;
+    }
+  }
+
+  const watchConfig = p.spinner();
+  watchConfig.start("Registering the watch app and fetching its Firebase config");
+  let config: WatchFirebaseConfig;
+  try {
+    const fetched = await fetchWatchConfig(account);
+    config = fetched.config;
+    watchConfig.stop(fetched.created ? "Watch app registered in Firebase" : "Watch app found in Firebase");
+  } catch (e) {
+    watchConfig.error(errorText(e));
+    p.note(
+      [
+        `Open ${accent(consoleUrl(id, "settings/general"))} → ${bold("Add app")} → Android.`,
+        `Package name ${bold(WATCH_PACKAGE)}, then download ${bold("google-services.json")}.`,
+      ].join("\n"),
+      "Watch app · in your browser",
+    );
+    for (;;) {
+      const file = unquote(answer(await p.path({ message: "The downloaded google-services.json", directory: false })));
+      try {
+        config = parseGoogleServices(fs.readFileSync(file, "utf8"));
+        break;
+      } catch (err) {
+        p.log.error(errorText(err));
+      }
+    }
+  }
+
+  const root = repoRoot();
+  if (!root) {
+    p.note(
+      Object.entries(config)
+        .map(([key, value]) => `firebase.${key}=${value}`)
+        .join("\n"),
+      "Add to local.properties before building the watch app",
+    );
+    return;
+  }
+  const changed = writeLocalProperties(path.join(root, "local.properties"), config);
+  if (!changed) {
+    p.log.success("Watch app config up to date in local.properties");
+    return;
+  }
+  p.log.success(`Watch app config written to local.properties ${dim("(git-ignored)")}`);
+  const build = answer(
+    await p.confirm({ message: "The watch app needs a rebuild for this. Build and install it on the watch now?", initialValue: true }),
+  );
+  if (build) await buildAndInstallWatchApp(root);
+  else p.log.info(`Later: ${bold("./gradlew :app:assembleRelease")} and install it (see the README).`);
 }
 
 async function apiKeyStep(): Promise<void> {
@@ -255,16 +411,12 @@ async function projectsStep(): Promise<void> {
   }
 }
 
-/** Puts the key on the watch over adb (wireless debugging), helping to connect or pair adb first when needed. */
-async function sendKeyOverAdb(key: string): Promise<boolean> {
+/** Finds the watch over adb (wireless debugging), helping to connect or pair adb first; null when the user skips. */
+async function connectWatchOverAdb(skipHint: string): Promise<{ adb: string; device: Device } | null> {
   const adb = findAdb();
   if (!adb) {
     p.log.error("adb not found. Install Android Studio or the Android platform-tools and run setup again.");
-    return false;
-  }
-  if (!isSafeKey(key)) {
-    p.log.error("This key has unexpected characters, so it can't go over adb. Type it on the watch instead.");
-    return false;
+    return null;
   }
   let devices = listDevices(adb);
   while (devices.length === 0) {
@@ -292,11 +444,11 @@ async function sendKeyOverAdb(key: string): Promise<boolean> {
         options: [
           { value: "pair", label: "Pair this computer", hint: "with the code on the watch" },
           { value: "retry", label: "Look again", hint: "wireless debugging was just switched on" },
-          { value: "skip", label: "Skip", hint: "type the key on the watch instead" },
+          { value: "skip", label: "Skip", hint: skipHint },
         ],
       }),
     );
-    if (next === "skip") return false;
+    if (next === "skip") return null;
     if (next === "pair") {
       const address = answer(
         await p.text({
@@ -320,6 +472,18 @@ async function sendKeyOverAdb(key: string): Promise<boolean> {
       await p.select({ message: "Which device is the watch?", options: devices.map((d) => ({ value: d, label: d.model, hint: d.serial })) }),
     );
   }
+  return { adb, device };
+}
+
+/** Puts the key on the watch through the app's adb-only key activity. */
+async function sendKeyOverAdb(key: string): Promise<boolean> {
+  if (!isSafeKey(key)) {
+    p.log.error("This key has unexpected characters, so it can't go over adb. Type it on the watch instead.");
+    return false;
+  }
+  const watch = await connectWatchOverAdb("type the key on the watch instead");
+  if (!watch) return false;
+  const { adb, device } = watch;
   if (!isInstalled(adb, device.serial)) {
     p.log.error(`Wristle is not installed on ${device.model}. Install it first (see the README).`);
     return false;
@@ -388,8 +552,8 @@ export async function setup(): Promise<{ startDaemon: boolean }> {
     return { startDaemon: false };
   }
 
-  p.log.step(bold("1 · Relay"));
-  await relayStep();
+  p.log.step(bold("1 · Firebase relay"));
+  await firebaseStep();
   p.log.step(bold("2 · Claude API key"));
   await apiKeyStep();
   p.log.step(bold("3 · Projects"));

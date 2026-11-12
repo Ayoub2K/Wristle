@@ -81,3 +81,8 @@ export function sendKey(adb: string, serial: string, key: string): boolean {
   const result = run(adb, ["-s", serial, "shell", "am", "start", "-n", `${WATCH_PACKAGE}/.KeySetupActivity`, "--es", "api_key", key]);
   return result.ok && !/error/i.test(result.out);
 }
+
+export function installApk(adb: string, serial: string, apk: string): { ok: boolean; message: string } {
+  const result = run(adb, ["-s", serial, "install", "-r", apk], 180_000);
+  return { ok: /success/i.test(result.out), message: result.out.trim().split(/\r?\n/).at(-1) ?? "" };
+}

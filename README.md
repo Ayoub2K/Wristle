@@ -172,14 +172,18 @@ present (see `keystore.properties.example`), otherwise with the debug key.
    `protocol fault`, you probably used the debug port; `adb mdns services`
    lists both.
 
-**4. Send your API key** (once, and again after changing it or clearing app
-data):
+**4. Get your API key onto the watch** (once, and again after changing it or
+clearing app data). Without a key, the app opens on a screen that shows these
+options:
 
-- Windows (PowerShell): `.\setup-key.ps1`
-- macOS / Linux / Git Bash: `./setup-key.sh`
-
-You can also type the key on the watch (Settings → Claude API key), but it is
-long.
+- **`wristle setup`** (from [`bridge/`](bridge/README.md)): pick **Chat**
+  with the arrow keys. It checks your key against the API and puts it on the
+  watch over adb, finding the watch on your Wi-Fi and helping you pair adb if
+  needed. With **Code** it also pairs the watch with the bridge and sends the
+  key end-to-end encrypted; `wristle key send` sends it again later.
+- **Over adb by hand:** `.\setup-key.ps1` (Windows PowerShell) or
+  `./setup-key.sh` (macOS / Linux / Git Bash).
+- **Typed on the watch:** possible, but the key is long.
 
 ---
 

@@ -42,14 +42,14 @@
     <string name="relay_test_title">Relay test</string>
     <string name="relay_not_configured">Firebase is not set up in this build. See docs/firebase-setup.md.</string>
     <string name="relay_connecting">Connecting…</string>
-    <string name="relay_ready">Ready. Run `wristle-bridge relay test` on your computer.</string>
+    <string name="relay_ready">Ready. Run `wristle relay test` on your computer.</string>
     <string name="relay_watch_id">Watch %1$s</string>
     <string name="relay_pings">Pings answered: %1$d</string>
     <string name="relay_failed">Failed: %1$s</string>
     <string name="relay_retry">Try again</string>
 
     <string name="error_no_api_key">No API key set. Open settings.</string>
-    <string name="error_unauthorized">Key rejected (401). Check the API key.</string>
+    <string name="error_unauthorized">Key rejected (401). Set a new one: run wristle setup on your computer.</string>
     <string name="error_api">API error %1$s</string>
     <string name="error_network">No connection: %1$s</string>
     <string name="error_timeout">The reply took too long.</string>
@@ -69,6 +69,15 @@
     <string name="settings_done">OK</string>
 
     <string name="keys_saved">Key saved</string>
+    <string name="key_setup_title">Add your Claude API key</string>
+    <string name="key_setup_from_computer">Easiest: send it from your computer. Run there:</string>
+    <string name="key_setup_pair">Pair with computer</string>
+    <string name="key_setup_type">Type it here</string>
+    <string name="key_setup_adb">Or over adb: setup-key (see the README)</string>
+    <string name="key_setup_saved">API key …%1$s saved</string>
+    <string name="key_setup_start">Start</string>
+    <string name="key_setup_replace">Type a new key</string>
+    <string name="key_setup_no_keyboard">No keyboard on this watch. Send the key from your computer.</string>
 
     <string name="tts_volume_muted">Volume is off: turn up media volume to hear replies</string>
 

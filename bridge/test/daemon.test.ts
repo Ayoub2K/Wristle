@@ -25,6 +25,8 @@ describe("daemon over IPC", () => {
       expect(await request({ cmd: "status" })).toMatchObject({ ok: true, pid: process.pid, projects: 0 });
       await expect(startDaemon(quiet, { relay: false })).rejects.toBeInstanceOf(DaemonAlreadyRunningError);
       expect(await request({ cmd: "nope" })).toMatchObject({ ok: false });
+      // Without a watch there is nobody to send the API key to.
+      expect(await request({ cmd: "sendApiKey" })).toMatchObject({ ok: false, error: expect.stringMatching(/not connected/) });
 
       expect(await request({ cmd: "stop" })).toMatchObject({ ok: true });
       await daemon.stopped;

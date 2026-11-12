@@ -15,7 +15,7 @@ const assistant = (content: unknown[]) => ({ type: "assistant", parent_tool_use_
 const result = (text: string) =>
   ({ type: "result", subtype: "success", is_error: false, result: text, total_cost_usd: 0.0123, num_turns: 3 }) as unknown as SDKMessage;
 
-function setup(messages: SDKMessage[], env: NodeJS.ProcessEnv = { ANTHROPIC_API_KEY: "test" }) {
+function setup(messages: SDKMessage[], env: NodeJS.ProcessEnv = { ANTHROPIC_API_KEY: "test" }, bridgeConfig: BridgeConfig = config) {
   const sent: Outgoing[] = [];
   const calls: Parameters<QueryFn>[0][] = [];
   let finished!: () => void;
@@ -28,7 +28,7 @@ function setup(messages: SDKMessage[], env: NodeJS.ProcessEnv = { ANTHROPIC_API_
   };
   const manager = new SessionManager({
     query,
-    config: () => config,
+    config: () => bridgeConfig,
     env,
     log: () => {},
     progressIntervalMs: 1,
@@ -84,10 +84,17 @@ describe("watch-started sessions", () => {
     expect(sent.some((m) => m.summary === "should not get here")).toBe(false);
   });
 
+  it("uses the key from the config when the environment has none", async () => {
+    const { manager, calls, done } = setup([init("ANTHROPIC_API_KEY"), result("ok")], {}, { ...config, apiKey: "from-config" });
+    await manager.handle({ type: "start", ts: Date.now(), project: "p1", prompt: "hi" });
+    await done;
+    expect(calls[0]?.options.env?.ANTHROPIC_API_KEY).toBe("from-config");
+  });
+
   it("refuses without an API key, unknown projects and empty instructions", async () => {
     const noKey = setup([], {});
     await noKey.manager.handle({ type: "start", ts: Date.now(), project: "p1", prompt: "hi" });
-    expect(noKey.sent).toEqual([{ type: "error", message: expect.stringMatching(/ANTHROPIC_API_KEY/) }]);
+    expect(noKey.sent).toEqual([{ type: "error", message: expect.stringMatching(/wristle setup/) }]);
 
     const { manager, sent, calls } = setup([]);
     await manager.handle({ type: "start", ts: Date.now(), project: "elsewhere", prompt: "hi" });

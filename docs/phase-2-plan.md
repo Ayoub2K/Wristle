@@ -64,7 +64,7 @@ Each milestone ends in something the owner can run or test.
 
 Status: unit tests (16) and the end-to-end smoke test pass on the owner's Windows PC (Node 24, named pipe) and in CI on Windows, macOS and Linux with Node 20 and 22 (all 6 jobs green).
 
-- `bridge/` package: CLI (`wristle-bridge serve | status | stop | projects add/list/remove | doctor`).
+- `bridge/` package: CLI (`wristle serve | status | stop | projects add/list/remove | doctor`).
 - Cross-platform config paths, IPC (named pipe / Unix socket), daemon start and stop without POSIX signals, logs.
 - Project allowlist.
 - GitHub Actions CI on Windows, macOS and Linux: unit tests plus an IPC round-trip test.
@@ -80,17 +80,17 @@ Split in two, so the relay design is proven before anything is built on it.
 Result on the owner's Galaxy Watch 4 over Wi-Fi, Firebase Spark plan, no Cloud Functions: the bridge's FCM push reached the watch and the pong came back through Firestore in **616–811 ms** with the app open, and with the app in the background and the screen off; **1,056 ms** after two minutes of sleep. The free-tier design works and FCM works on the standalone Watch 4.
 
 - [docs/firebase-setup.md](firebase-setup.md): the owner creates the Firebase project (Spark plan), Firestore with [`relay/firestore.rules`](../relay/firestore.rules), anonymous sign-in, and a service account key for the bridge.
-- Bridge: `wristle-bridge relay setup <key.json>` stores the key in the config folder; `wristle-bridge relay test` pushes a ping to the watch via FCM and waits for the pong in Firestore.
+- Bridge: `wristle relay setup <key.json>` stores the key in the config folder; `wristle relay test` pushes a ping to the watch via FCM and waits for the pong in Firestore.
 - Watch: Firebase is configured from `local.properties` (no `google-services.json`, no Google Services plugin), signs in anonymously, registers its FCM token, and answers pings (**Settings → Relay test**).
 - **Done when:** the ping round-trips between the PC and the watch over Wi-Fi. That proves the free-tier design (no Cloud Functions) and FCM on the standalone Watch 4. The owner's watch (SM-R870) has no LTE, so LTE is not tested.
 
 **P2-M2b: pairing and encryption** ✅ (verified 2026-11-02)
 
-Result on the owner's Galaxy Watch 4 and Windows PC: the codes matched on both screens, the bridge's encrypted hello reached the watch (it shows the computer's name) and `wristle-bridge ping` round-tripped encrypted.
+Result on the owner's Galaxy Watch 4 and Windows PC: the codes matched on both screens, the bridge's encrypted hello reached the watch (it shows the computer's name) and `wristle ping` round-tripped encrypted.
 
 - Pairing: the watch shows a code, the bridge enters it, both show the same 6-digit security code.
 - Encrypted ping/pong between watch and bridge; the relay sees only ciphertext.
-- Built: `wristle-bridge pair <code> | unpair | ping`; the Code half on the watch pairs and shows the encrypted ping count. Crypto: X25519 (Tink on the watch, Node crypto on the bridge), HKDF-SHA256, AES-256-GCM with the pairing, direction and sequence number as AAD, ±5 minute window. Both sides pass the same test vectors ([`relay/test-vectors.json`](../relay/test-vectors.json)) and RFC 7748's X25519 vector. The pairing only counts after both the watch and the computer confirm the security code.
+- Built: `wristle pair <code> | unpair | ping`; the Code half on the watch pairs and shows the encrypted ping count. Crypto: X25519 (Tink on the watch, Node crypto on the bridge), HKDF-SHA256, AES-256-GCM with the pairing, direction and sequence number as AAD, ±5 minute window. Both sides pass the same test vectors ([`relay/test-vectors.json`](../relay/test-vectors.json)) and RFC 7748's X25519 vector. The pairing only counts after both the watch and the computer confirm the security code.
 
 **Done when:** the watch and the PC pair and an encrypted test message round-trips.
 
@@ -103,12 +103,18 @@ Result on the owner's Galaxy Watch 4 and Windows PC: the codes matched on both s
 
 Built and verified on the owner's Galaxy Watch 4 and Windows PC on 2026-11-02: a spoken question started a read-only session, the watch showed its progress, answer and cost.
 
-- `wristle-bridge serve` keeps the encrypted mailbox open when paired and runs sessions with the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`). One session at a time.
+- `wristle serve` keeps the encrypted mailbox open when paired and runs sessions with the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`). One session at a time.
 - **Read-only**: the session only gets `Read`, `Glob` and `Grep` (`permissionMode: "dontAsk"`), so it can look but not change anything until approvals arrive in P2-M4. It loads project settings and `CLAUDE.md`, not user settings.
 - **API key only**: the bridge refuses to start without `ANTHROPIC_API_KEY`, and stops a session whose init message reports any other credential source.
-- The model is the Agent SDK's default unless set with `wristle-bridge model <id>`; the watch shows which model ran.
+- The model is the Agent SDK's default unless set with `wristle model <id>`; the watch shows which model ran.
 - Progress goes to the watch at most every 2.5 seconds (a few lines: what Claude says and which files it reads), then the final answer and the cost.
 - Watch: the *Code* half lists the allowed projects; tap one and speak the instruction. A running session can be stopped from the watch.
+
+### Setup and API key from the computer ✅ (2026-11-12)
+
+- `wristle setup` is a guided terminal setup (relay key, Claude API key checked against the API and stored in the bridge config, allowed projects, pairing, then optionally starts the daemon). The stored key wins over `ANTHROPIC_API_KEY` (used only when nothing is stored), so a revoked key left in the environment can't shadow the one setup checked.
+- The bridge can send its API key to the watch as an `apiKey` message over the encrypted mailbox (`setup` offers it, `wristle key send` resends it); the watch stores it like a typed key. The adb `setup-key` scripts stay as an alternative.
+- Without a key, the watch opens on a screen that explains the three ways in, instead of the keyboard.
 
 ### P2-M4: Approvals and questions
 
@@ -124,7 +130,7 @@ Built and verified on the owner's Galaxy Watch 4 and Windows PC on 2026-11-02: a
 
 ### P2-M6: Terminal sessions via hooks
 
-- `wristle-bridge hooks install | uninstall | status`, working on all three operating systems (hook commands, paths and shells differ on Windows).
+- `wristle hooks install | uninstall | status`, working on all three operating systems (hook commands, paths and shells differ on Windows).
 - Approve your own terminal sessions from the watch; get notified when Claude needs you or is done.
 - First, settle the open question about subscription sessions and hooks.
 

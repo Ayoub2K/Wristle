@@ -36,7 +36,7 @@ class AppContainer(
 
     val relayTestRepository = RelayTestRepository(appScope)
 
-    val pairingRepository = PairingRepository(appContext, secretCipher, appScope)
+    val pairingRepository = PairingRepository(appContext, secretCipher, appScope, onApiKey = settingsRepository::setApiKey)
 
     val codeRepository = CodeRepository(pairingRepository, appScope)
 }

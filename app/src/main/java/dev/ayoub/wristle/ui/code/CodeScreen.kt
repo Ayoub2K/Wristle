@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -21,7 +22,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.ScalingLazyListScope
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
@@ -32,8 +32,6 @@ import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.CircularProgressIndicator
 import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.MaterialTheme
-import androidx.wear.compose.material.PositionIndicator
-import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.Text
 import dev.ayoub.wristle.R
 import dev.ayoub.wristle.code.CodeSession
@@ -41,6 +39,7 @@ import dev.ayoub.wristle.code.CodeState
 import dev.ayoub.wristle.code.Project
 import dev.ayoub.wristle.relay.PairingState
 import dev.ayoub.wristle.ui.Accent
+import dev.ayoub.wristle.ui.CenteredList
 import dev.ayoub.wristle.ui.ErrorRed
 
 /** The Code half: pairing with the computer bridge, then the allowed projects and the session started from the watch. */
@@ -61,51 +60,50 @@ fun CodeScreen(
     LaunchedEffect(state is PairingState.Unpaired) { if (state is PairingState.Unpaired) onStartPairing() }
     LaunchedEffect(state is PairingState.Paired) { if (state is PairingState.Paired) onRefresh() }
     DisposableEffect(Unit) { onDispose(onCancelPairing) }
-    val listState = rememberScalingLazyListState()
-    Scaffold(positionIndicator = { PositionIndicator(scalingLazyListState = listState) }) {
-        ScalingLazyColumn(state = listState, horizontalAlignment = Alignment.CenterHorizontally) {
-            item { Text("</>", color = Accent, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
-            when (state) {
-                PairingState.NotConfigured -> item { Info(stringResource(R.string.relay_not_configured)) }
-                PairingState.Unpaired, PairingState.Working -> {
-                    item { CircularProgressIndicator(indicatorColor = Accent, modifier = Modifier.padding(8.dp)) }
-                    item { Info(stringResource(R.string.pair_getting_code)) }
+    // A fresh scroll position per pairing step, so a short step doesn't open scrolled into the previous one.
+    val listState = key(state::class) { rememberScalingLazyListState(initialCenterItemIndex = 0) }
+    CenteredList(state = listState) {
+        item { Text("</>", color = Accent, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+        when (state) {
+            PairingState.NotConfigured -> item { Info(stringResource(R.string.relay_not_configured)) }
+            PairingState.Unpaired, PairingState.Working -> {
+                item { CircularProgressIndicator(indicatorColor = Accent, modifier = Modifier.padding(8.dp)) }
+                item { Info(stringResource(R.string.pair_getting_code)) }
+            }
+            is PairingState.ShowingCode -> {
+                item { Info(stringResource(R.string.pair_run_on_computer)) }
+                item { Info("wristle setup", color = Color.Gray, monospace = true) }
+                item { Big(state.code) }
+            }
+            is PairingState.Confirming -> {
+                item { Info(stringResource(R.string.pair_same_code)) }
+                item { Big(state.sas.chunked(3).joinToString(" ")) }
+                if (state.waiting) {
+                    item { Info(stringResource(R.string.pair_waiting_for_computer), color = Color.Gray) }
+                } else {
+                    item { ConfirmButtons(onConfirm = onConfirm, onReject = onReject) }
                 }
-                is PairingState.ShowingCode -> {
-                    item { Info(stringResource(R.string.pair_run_on_computer)) }
-                    item { Info("wristle-bridge pair", color = Color.Gray, monospace = true) }
-                    item { Big(state.code) }
+            }
+            PairingState.CancelledOnComputer -> {
+                item { Info(stringResource(R.string.pair_cancelled_on_computer), color = ErrorRed) }
+                item { ActionChip(stringResource(R.string.relay_retry), onStartPairing) }
+            }
+            is PairingState.Paired -> {
+                code.session?.let { session -> item { SessionCard(session, onStop = onStop, onDismiss = onDismiss) } }
+                code.error?.let { error -> item { Info(error, color = ErrorRed) } }
+                if (code.session?.running != true) projectItems(code, onRefresh = onRefresh, onDictate = onDictate)
+                item {
+                    val name = state.computerName
+                    Info(
+                        if (name == null) stringResource(R.string.pair_paired) else stringResource(R.string.pair_paired_with, name),
+                        color = Color.Gray,
+                    )
                 }
-                is PairingState.Confirming -> {
-                    item { Info(stringResource(R.string.pair_same_code)) }
-                    item { Big(state.sas.chunked(3).joinToString(" ")) }
-                    if (state.waiting) {
-                        item { Info(stringResource(R.string.pair_waiting_for_computer), color = Color.Gray) }
-                    } else {
-                        item { ConfirmButtons(onConfirm = onConfirm, onReject = onReject) }
-                    }
-                }
-                PairingState.CancelledOnComputer -> {
-                    item { Info(stringResource(R.string.pair_cancelled_on_computer), color = ErrorRed) }
-                    item { ActionChip(stringResource(R.string.relay_retry), onStartPairing) }
-                }
-                is PairingState.Paired -> {
-                    code.session?.let { session -> item { SessionCard(session, onStop = onStop, onDismiss = onDismiss) } }
-                    code.error?.let { error -> item { Info(error, color = ErrorRed) } }
-                    if (code.session?.running != true) projectItems(code, onRefresh = onRefresh, onDictate = onDictate)
-                    item {
-                        val name = state.computerName
-                        Info(
-                            if (name == null) stringResource(R.string.pair_paired) else stringResource(R.string.pair_paired_with, name),
-                            color = Color.Gray,
-                        )
-                    }
-                    item { ActionChip(stringResource(R.string.pair_unpair), onUnpair, background = MaterialTheme.colors.surface) }
-                }
-                is PairingState.Failed -> {
-                    item { Info(stringResource(R.string.relay_failed, state.message), color = ErrorRed) }
-                    item { ActionChip(stringResource(R.string.relay_retry), onStartPairing) }
-                }
+                item { ActionChip(stringResource(R.string.pair_unpair), onUnpair, background = MaterialTheme.colors.surface) }
+            }
+            is PairingState.Failed -> {
+                item { Info(stringResource(R.string.relay_failed, state.message), color = ErrorRed) }
+                item { ActionChip(stringResource(R.string.relay_retry), onStartPairing) }
             }
         }
     }
@@ -120,13 +118,13 @@ private fun ScalingLazyListScope.projectItems(
     when {
         code.noAnswer -> {
             item { Info(stringResource(R.string.code_no_answer), color = ErrorRed) }
-            item { Info("wristle-bridge serve", color = Color.Gray, monospace = true) }
+            item { Info("wristle serve", color = Color.Gray, monospace = true) }
             item { ActionChip(stringResource(R.string.relay_retry), onRefresh) }
         }
         projects == null -> item { CircularProgressIndicator(indicatorColor = Accent, modifier = Modifier.padding(8.dp)) }
         projects.isEmpty() -> {
             item { Info(stringResource(R.string.code_no_projects)) }
-            item { Info("wristle-bridge projects add <folder>", color = Color.Gray, monospace = true) }
+            item { Info("wristle projects add <folder>", color = Color.Gray, monospace = true) }
         }
         else -> {
             item { Info(stringResource(R.string.code_pick_project), color = Color.Gray) }

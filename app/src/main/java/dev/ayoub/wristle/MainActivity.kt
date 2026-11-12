@@ -130,10 +130,7 @@ class MainActivity : ComponentActivity() {
                 intent?.getBooleanExtra(EXTRA_LISTEN, false) == true ||
                 !prompt.isNullOrBlank()
         when {
-            !settingsViewModel.hasApiKey -> {
-                navigate(Destination.SETTINGS)
-                editApiKey()
-            }
+            !settingsViewModel.hasApiKey -> navigate(Destination.KEY_SETUP)
             !prompt.isNullOrBlank() -> {
                 navigate(Destination.CHAT)
                 chatViewModel.newChat()
@@ -148,6 +145,7 @@ class MainActivity : ComponentActivity() {
 
     /** Chat button, tile and Home key: always a new question; the previous chat goes to the history. */
     private fun openChat() {
+        if (!settingsViewModel.hasApiKey) return navigate(Destination.KEY_SETUP)
         navigate(Destination.CHAT)
         chatViewModel.newChat()
         if (shouldAskNotificationPermission()) {
@@ -200,7 +198,7 @@ class MainActivity : ComponentActivity() {
         try {
             keyInputLauncher.launch(intent)
         } catch (e: ActivityNotFoundException) {
-            navigate(Destination.SETTINGS)
+            Toast.makeText(this, R.string.key_setup_no_keyboard, Toast.LENGTH_LONG).show()
         }
     }
 

@@ -41,7 +41,7 @@ export function installServiceAccount(source: string): ServiceAccount {
 
 export function loadServiceAccount(): ServiceAccount {
   if (!fs.existsSync(credentialsFile())) {
-    throw new RelayError("no Firebase key yet: run `wristle-bridge relay setup <service-account.json>` (see docs/firebase-setup.md)");
+    throw new RelayError("no Firebase key yet: run `wristle relay setup <service-account.json>` (see docs/firebase-setup.md)");
   }
   return parseServiceAccount(fs.readFileSync(credentialsFile(), "utf8"));
 }

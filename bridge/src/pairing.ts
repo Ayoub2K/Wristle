@@ -53,7 +53,7 @@ export function savePairing(pairing: Pairing): void {
 
 function requirePairing(): Pairing {
   const pairing = loadPairing();
-  if (!pairing) throw new RelayError("not paired with a watch yet: open Code on the watch and run `wristle-bridge pair <code>`");
+  if (!pairing) throw new RelayError("not paired with a watch yet: open Code on the watch and run `wristle pair <code>`");
   return pairing;
 }
 
@@ -149,7 +149,7 @@ export async function send(pairing: Pairing, message: Message): Promise<void> {
   const ref = db.collection(PAIRINGS).doc(pairing.pairingId);
   const doc = await ref.get();
   const token = doc.get("fcmToken") as string | undefined;
-  if (!doc.exists) throw new RelayError("the watch removed this pairing: run `wristle-bridge unpair` and pair again");
+  if (!doc.exists) throw new RelayError("the watch removed this pairing: run `wristle unpair` and pair again");
   const seq = pairing.nextSeq;
   const envelope = seal(Buffer.from(pairing.b2wKey, "base64"), pairing.pairingId, "b2w", seq, message);
   pairing.nextSeq = seq + 1;

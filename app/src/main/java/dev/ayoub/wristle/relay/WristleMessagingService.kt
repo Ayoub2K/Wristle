@@ -10,6 +10,11 @@ import kotlinx.coroutines.withTimeoutOrNull
 class WristleMessagingService : FirebaseMessagingService() {
     private val container get() = (application as WristleApplication).container
 
+    override fun onCreate() {
+        RelayFirebase.ensureInitialized()
+        super.onCreate()
+    }
+
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
         when (data["type"]) {

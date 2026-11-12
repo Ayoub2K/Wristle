@@ -1,7 +1,7 @@
 package dev.ayoub.wristle.data
 
-import com.anthropic.core.jsonMapper
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -12,7 +12,7 @@ class ChatStore(
 ) {
     fun load(): ChatSession =
         try {
-            if (file.exists()) decode(jsonMapper().readTree(file)).interrupted() else ChatSession()
+            if (file.exists()) decode(mapper.readTree(file)).interrupted() else ChatSession()
         } catch (e: Exception) {
             ChatSession()
         }
@@ -21,13 +21,13 @@ class ChatStore(
 
     fun loadHistory(): List<ChatSession> =
         try {
-            if (historyFile.exists()) jsonMapper().readTree(historyFile).map(::decode) else emptyList()
+            if (historyFile.exists()) mapper.readTree(historyFile).map(::decode) else emptyList()
         } catch (e: Exception) {
             emptyList()
         }
 
     fun saveHistory(history: List<ChatSession>): Boolean =
-        write(historyFile, jsonMapper().createArrayNode().apply { history.forEach { add(encode(it)) } })
+        write(historyFile, mapper.createArrayNode().apply { history.forEach { add(encode(it)) } })
 
     private fun write(
         target: File,
@@ -36,7 +36,7 @@ class ChatStore(
         try {
             val tmp = File(target.parentFile, "${target.name}.tmp")
             FileOutputStream(tmp).use { out ->
-                out.write(jsonMapper().writeValueAsBytes(json))
+                out.write(mapper.writeValueAsBytes(json))
                 out.fd.sync()
             }
             tmp.renameTo(target)
@@ -45,7 +45,7 @@ class ChatStore(
         }
 
     private fun encode(session: ChatSession): JsonNode {
-        val root = jsonMapper().createObjectNode()
+        val root = mapper.createObjectNode()
         root.put("status", session.status.name)
         root.put("seen", session.seen)
         root.put("startedAt", session.startedAt)
@@ -79,4 +79,9 @@ class ChatStore(
             seen = root.path("seen").asBoolean(true),
             startedAt = root.path("startedAt").asLong(0L),
         )
+
+    private companion object {
+        // One plain mapper: the SDK's jsonMapper() builds a new, module-heavy mapper per call, which slowed app start.
+        val mapper = ObjectMapper()
+    }
 }

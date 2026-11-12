@@ -1,4 +1,4 @@
-/** Bridge config: the project allowlist, stored as JSON with atomic writes. */
+/** Bridge config: the project allowlist, model and API key, stored as JSON with atomic writes (owner-only on macOS and Linux). */
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -15,6 +15,8 @@ export interface BridgeConfig {
   projects: Project[];
   /** Model for watch-started sessions; the Agent SDK's default when unset. */
   model?: string;
+  /** Claude API key for watch-started sessions (`wristle setup`); wins over ANTHROPIC_API_KEY in the environment. */
+  apiKey?: string;
 }
 
 export class ConfigError extends Error {}
@@ -29,6 +31,7 @@ export function loadConfig(file = configFile()): BridgeConfig {
       version: 1,
       projects: Array.isArray(parsed.projects) ? parsed.projects : [],
       ...(typeof parsed.model === "string" && parsed.model ? { model: parsed.model } : {}),
+      ...(typeof parsed.apiKey === "string" && parsed.apiKey ? { apiKey: parsed.apiKey } : {}),
     };
   } catch (e) {
     throw new ConfigError(`config file is not valid JSON: ${file} (${(e as Error).message})`);
@@ -40,6 +43,23 @@ export function saveConfig(config: BridgeConfig, file = configFile()): void {
   const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(config, null, 2) + "\n", { mode: 0o600 });
   fs.renameSync(tmp, file);
+}
+
+export type ApiKeySource = "environment" | "config";
+
+/**
+ * The key sessions use and where it comes from, or null when there is none. The saved key wins: it is the one
+ * `wristle setup` checked, while an old ANTHROPIC_API_KEY can linger in the environment after a key is revoked.
+ */
+export function resolveApiKey(config: BridgeConfig, env: NodeJS.ProcessEnv = process.env): { key: string; source: ApiKeySource } | null {
+  if (config.apiKey) return { key: config.apiKey, source: "config" };
+  if (env.ANTHROPIC_API_KEY) return { key: env.ANTHROPIC_API_KEY, source: "environment" };
+  return null;
+}
+
+/** Only the end of a key, for showing which one is in use. */
+export function maskApiKey(key: string): string {
+  return `…${key.slice(-4)}`;
 }
 
 /** Compares paths the way the OS does: case-insensitive on Windows and macOS. */

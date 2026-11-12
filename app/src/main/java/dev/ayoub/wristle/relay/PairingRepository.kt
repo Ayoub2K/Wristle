@@ -7,9 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.messaging.FirebaseMessaging
 import dev.ayoub.wristle.data.SecretCipher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -35,7 +33,7 @@ sealed interface PairingState {
 
     data object Working : PairingState
 
-    /** Waiting for `wristle-bridge pair <code>` on the computer. */
+    /** Waiting for `wristle pair <code>` on the computer. */
     data class ShowingCode(
         val code: String,
     ) : PairingState
@@ -65,6 +63,8 @@ class PairingRepository(
     context: Context,
     private val cipher: SecretCipher,
     private val scope: CoroutineScope,
+    /** The bridge sent the computer's Claude API key (`wristle setup` / `key send`). */
+    private val onApiKey: (String) -> Unit,
 ) {
     private class Stored(
         val pairingId: String,
@@ -84,7 +84,7 @@ class PairingRepository(
     )
 
     private val prefs = context.getSharedPreferences("pairing", Context.MODE_PRIVATE)
-    private val db get() = FirebaseFirestore.getInstance()
+    private val db get() = RelayFirebase.firestore()
     private val mailbox = Mutex()
     private var pending: Pending? = null
     private var listener: ListenerRegistration? = null
@@ -119,7 +119,7 @@ class PairingRepository(
                         mapOf(
                             "watchUid" to uid,
                             "watchPublic" to base64(keyPair.publicKey),
-                            "fcmToken" to FirebaseMessaging.getInstance().token.await(),
+                            "fcmToken" to RelayFirebase.messaging().token.await(),
                             "createdAt" to FieldValue.serverTimestamp(),
                         ),
                     ).await()
@@ -296,6 +296,15 @@ class PairingRepository(
                 updated
             }
             "ping" -> send(stored, PairingCrypto.message("pong").put("id", message["id"]?.asText()))
+            "apiKey" -> {
+                // Handled here rather than through [messages]: a push can start the app before anyone collects those.
+                message["key"]
+                    ?.asText()
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() && it.length <= MAX_API_KEY_CHARS }
+                    ?.let(onApiKey)
+                stored
+            }
             else -> {
                 mutableMessages.tryEmit(message)
                 stored
@@ -383,6 +392,7 @@ class PairingRepository(
         const val CODES = "pairingCodes"
         const val PAIRINGS = "pairings"
         const val KEY_PAIRING = "pairing"
+        const val MAX_API_KEY_CHARS = 500
 
         // Same alphabet as the bridge: no 0/O or 1/I/L.
         const val CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"

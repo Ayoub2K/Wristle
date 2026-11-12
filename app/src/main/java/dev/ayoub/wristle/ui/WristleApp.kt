@@ -23,9 +23,10 @@ import dev.ayoub.wristle.ui.home.HomeScreen
 import dev.ayoub.wristle.ui.relay.RelayTestScreen
 import dev.ayoub.wristle.ui.settings.SettingsScreen
 import dev.ayoub.wristle.ui.settings.SettingsViewModel
+import dev.ayoub.wristle.ui.setup.KeySetupScreen
 import kotlinx.coroutines.flow.StateFlow
 
-enum class Destination { HOME, CHAT, CODE, HISTORY, SETTINGS, RELAY_TEST }
+enum class Destination { HOME, CHAT, CODE, HISTORY, SETTINGS, RELAY_TEST, KEY_SETUP }
 
 data class NavigationRequest(
     val destination: Destination,
@@ -110,9 +111,18 @@ fun WristleApp(
                         onCycleEffort = settingsViewModel::cycleEffort,
                         onSpeakChange = settingsViewModel::setSpeakReplies,
                         onLongRepliesChange = settingsViewModel::setLongReplies,
-                        onEditKey = onEditKey,
+                        onEditKey = { navController.navigate(Destination.KEY_SETUP.name) },
                         onRelayTest = { navController.navigate(Destination.RELAY_TEST.name) },
                         onDone = { navController.popBackStack() },
+                    )
+                }
+                composable(Destination.KEY_SETUP.name) {
+                    val state by settingsViewModel.uiState.collectAsStateWithLifecycle()
+                    KeySetupScreen(
+                        keySuffix = state.apiKeySuffix,
+                        onPairComputer = { navController.navigate(Destination.CODE.name) },
+                        onTypeKey = onEditKey,
+                        onDone = { navController.popBackStack(Destination.HOME.name, inclusive = false) },
                     )
                 }
                 composable(Destination.RELAY_TEST.name) {

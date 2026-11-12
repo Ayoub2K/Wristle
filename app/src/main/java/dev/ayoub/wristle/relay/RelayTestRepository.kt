@@ -1,11 +1,8 @@
 package dev.ayoub.wristle.relay
 
 import android.os.Build
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,7 +47,7 @@ class RelayTestRepository(
         scope.launch {
             try {
                 val uid = signIn()
-                val token = FirebaseMessaging.getInstance().token.await()
+                val token = RelayFirebase.messaging().token.await()
                 document(uid)
                     .set(
                         mapOf("fcmToken" to token, "device" to Build.MODEL, "updatedAt" to FieldValue.serverTimestamp()),
@@ -74,13 +71,13 @@ class RelayTestRepository(
     }
 
     suspend fun tokenChanged(token: String) {
-        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val uid = RelayFirebase.auth().currentUser?.uid ?: return
         document(uid).set(mapOf("fcmToken" to token, "updatedAt" to FieldValue.serverTimestamp()), SetOptions.merge()).await()
     }
 
     private suspend fun signIn() = RelayFirebase.signIn()
 
-    private fun document(uid: String) = FirebaseFirestore.getInstance().collection(TESTS).document(uid)
+    private fun document(uid: String) = RelayFirebase.firestore().collection(TESTS).document(uid)
 
     private companion object {
         const val TESTS = "tests"

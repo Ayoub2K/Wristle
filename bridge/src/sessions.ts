@@ -2,13 +2,13 @@
  * Claude Code sessions started from the watch (P2-M3), run through the Claude Agent SDK.
  *
  * Read-only for now: the session can only read and search the project. Approving other tools from the
- * watch comes in P2-M4. Sessions must use an API key (ANTHROPIC_API_KEY): the Agent SDK may not run on a
+ * watch comes in P2-M4. Sessions must use an API key (from the config or ANTHROPIC_API_KEY): the Agent SDK may not run on a
  * claude.ai login, so a session that reports any other credential source is stopped.
  */
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { Options, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import { type BridgeConfig, isAllowed } from "./config.js";
+import { type BridgeConfig, isAllowed, resolveApiKey } from "./config.js";
 import type { Message } from "./crypto.js";
 import type { Logger } from "./log.js";
 
@@ -112,18 +112,19 @@ export class SessionManager {
     if (!prompt) return this.fail("The instruction was empty.");
     if (prompt.length > MAX_PROMPT_CHARS) return this.fail("The instruction is too long.");
     if (this.running) return this.fail("A session is already running. Stop it first.");
-    if (!env.ANTHROPIC_API_KEY) return this.fail("No API key on the computer: set ANTHROPIC_API_KEY and restart the bridge.");
+    const apiKey = resolveApiKey(config, env);
+    if (!apiKey) return this.fail("No API key on the computer: run `wristle setup` there.");
 
     const running: Running = { id: randomUUID().slice(0, 8), abort: new AbortController() };
     this.running = running;
     this.deps.log(`session ${running.id} started in ${project.name}`);
     await this.deps.send({ type: "session", sessionId: running.id, project: project.name, prompt, state: "running" });
-    void this.run(running, project.path, prompt).finally(() => {
+    void this.run(running, project.path, prompt, apiKey.key).finally(() => {
       if (this.running === running) this.running = null;
     });
   }
 
-  private async run(running: Running, cwd: string, prompt: string): Promise<void> {
+  private async run(running: Running, cwd: string, prompt: string, apiKey: string): Promise<void> {
     const { send, log } = this.deps;
     let pending: string[] = [];
     let timer: NodeJS.Timeout | undefined;
@@ -158,7 +159,7 @@ export class SessionManager {
           settingSources: ["project"],
           systemPrompt: { type: "preset", preset: "claude_code", append: WATCH_NOTE },
           abortController: running.abort,
-          env: { ...(this.deps.env ?? process.env) },
+          env: { ...(this.deps.env ?? process.env), ANTHROPIC_API_KEY: apiKey },
         },
       });
       for await (const message of messages) {

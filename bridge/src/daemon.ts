@@ -4,7 +4,7 @@
  */
 import fs from "node:fs";
 import type net from "node:net";
-import { loadConfig } from "./config.js";
+import { loadConfig, resolveApiKey } from "./config.js";
 import { type IpcMessage, startIpcServer } from "./ipc.js";
 import type { Logger } from "./log.js";
 import { loadPairing, Mailbox } from "./pairing.js";
@@ -67,6 +67,19 @@ export async function startDaemon(log: Logger, options: DaemonOptions = {}): Pro
           (e: unknown) => reply({ ok: false, error: e instanceof Error ? e.message : String(e) }),
         );
         break;
+      case "sendApiKey": {
+        // The daemon reads the key itself, so it never travels over the local IPC.
+        const apiKey = resolveApiKey(loadConfig());
+        if (!mailbox) reply({ ok: false, error: "the daemon is not connected to a watch" });
+        else if (!apiKey) reply({ ok: false, error: "no API key on this computer: run `wristle setup`" });
+        else {
+          mailbox.send({ type: "apiKey", key: apiKey.key }).then(
+            () => reply({ ok: true }),
+            (e: unknown) => reply({ ok: false, error: e instanceof Error ? e.message : String(e) }),
+          );
+        }
+        break;
+      }
       case "stop":
         reply({ ok: true });
         // Reply first, then shut down, so the client gets its answer.
@@ -87,7 +100,7 @@ export async function startDaemon(log: Logger, options: DaemonOptions = {}): Pro
 
 async function connectWatch(log: Logger, query: QueryFn): Promise<Mailbox | undefined> {
   if (!loadPairing() || !fs.existsSync(credentialsFile())) {
-    log("not paired with a watch; sessions from the watch are off (wristle-bridge pair <code>)");
+    log("not paired with a watch; sessions from the watch are off (wristle setup)");
     return undefined;
   }
   const mailbox = await Mailbox.open((e) => log(`relay error: ${e.message}`));

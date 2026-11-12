@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
-import { addProject, type BridgeConfig, ConfigError, isAllowed, loadConfig, removeProject, saveConfig } from "../src/config.js";
+import { addProject, type BridgeConfig, ConfigError, isAllowed, loadConfig, maskApiKey, removeProject, resolveApiKey, saveConfig } from "../src/config.js";
 
 let root: string;
 let config: BridgeConfig;
@@ -56,5 +56,23 @@ describe("projects", () => {
     const broken = path.join(root, "broken.json");
     fs.writeFileSync(broken, "{not json");
     expect(() => loadConfig(broken)).toThrow(ConfigError);
+  });
+});
+
+describe("API key", () => {
+  it("survives a save and load", () => {
+    const file = path.join(root, "config.json");
+    saveConfig({ ...config, apiKey: "sk-ant-test-1234" }, file);
+    expect(loadConfig(file).apiKey).toBe("sk-ant-test-1234");
+  });
+
+  it("prefers the saved key over the environment", () => {
+    expect(resolveApiKey({ ...config, apiKey: "from-config" }, { ANTHROPIC_API_KEY: "from-env" })).toEqual({ key: "from-config", source: "config" });
+    expect(resolveApiKey(config, { ANTHROPIC_API_KEY: "from-env" })).toEqual({ key: "from-env", source: "environment" });
+    expect(resolveApiKey(config, {})).toBeNull();
+  });
+
+  it("shows only the end of a key", () => {
+    expect(maskApiKey("test-key-abcdWXYZ")).toBe("…WXYZ");
   });
 });

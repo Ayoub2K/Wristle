@@ -2,36 +2,38 @@
 /** wristle-bridge command line. */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
-import { createInterface } from "node:readline/promises";
 import { CryptoError } from "./crypto.js";
-import { addProject, ConfigError, loadConfig, removeProject, saveConfig } from "./config.js";
+import { addProject, ConfigError, loadConfig, maskApiKey, removeProject, resolveApiKey, saveConfig } from "./config.js";
 import { startDaemon } from "./daemon.js";
 import { DaemonAlreadyRunningError, isListening, request } from "./ipc.js";
 import { createLogger } from "./log.js";
-import { loadPairing, Mailbox, pair, pairingFile, unpair } from "./pairing.js";
+import { loadPairing, Mailbox, pairingFile, unpair } from "./pairing.js";
 import { configDir, ipcPath, logFile } from "./paths.js";
 import { checkRelay, credentialsFile, installServiceAccount, loadServiceAccount, pingWatch, RelayError } from "./relay.js";
+import { checkApiKey, enterApiKey, pairWithWatch, sendApiKeyToWatch, setup, SetupCancelled } from "./setup.js";
 import { VERSION } from "./version.js";
 
 const EXIT = { ok: 0, error: 1, usage: 2, notRunning: 3 } as const;
 
-const USAGE = `wristle-bridge ${VERSION}
+const USAGE = `wristle ${VERSION}
 
 Usage:
-  wristle-bridge serve                    run the bridge daemon (keep it running)
-  wristle-bridge status                   show whether the daemon is running
-  wristle-bridge stop                     stop a running daemon
-  wristle-bridge projects list            list folders where sessions may start
-  wristle-bridge projects add <dir> [name]
-  wristle-bridge projects remove <id|name|dir>
-  wristle-bridge relay setup <key.json>   store the Firebase service account key and check it
-  wristle-bridge relay test               push a ping to the watch and wait for its answer
-  wristle-bridge pair <code>              pair with the watch (open Code on the watch for the code)
-  wristle-bridge unpair                   forget the paired watch
-  wristle-bridge ping                     send an encrypted ping to the paired watch
-  wristle-bridge model [<id>|default]     model for sessions started from the watch
-  wristle-bridge doctor                   check this computer's setup
-  wristle-bridge help`;
+  wristle setup                    guided setup: relay, API key, projects, pairing (start here)
+  wristle serve                    run the bridge daemon (keep it running)
+  wristle status                   show whether the daemon is running
+  wristle stop                     stop a running daemon
+  wristle projects list            list folders where sessions may start
+  wristle projects add <dir> [name]
+  wristle projects remove <id|name|dir>
+  wristle relay setup <key.json>   store the Firebase service account key and check it
+  wristle relay test               push a ping to the watch and wait for its answer
+  wristle pair [<code>]            pair with the watch (open Code on the watch for the code)
+  wristle unpair                   forget the paired watch
+  wristle ping                     send an encrypted ping to the paired watch
+  wristle key [set|send|remove]    show, change, send to the watch or forget the Claude API key
+  wristle model [<id>|default]     model for sessions started from the watch
+  wristle doctor                   check this computer's setup
+  wristle help`;
 
 async function serve(): Promise<number> {
   const log = createLogger();
@@ -45,7 +47,7 @@ async function serve(): Promise<number> {
     }
     throw e;
   }
-  // Ctrl+C works on every OS; SIGTERM is only sent on macOS and Linux. `wristle-bridge stop` works everywhere.
+  // Ctrl+C works on every OS; SIGTERM is only sent on macOS and Linux. `wristle stop` works everywhere.
   process.once("SIGINT", () => void daemon.stop());
   if (process.platform !== "win32") process.once("SIGTERM", () => void daemon.stop());
   await daemon.stopped;
@@ -87,7 +89,7 @@ function projects(args: string[]): number {
   switch (sub) {
     case undefined:
     case "list":
-      if (config.projects.length === 0) console.log("no allowed projects yet: wristle-bridge projects add <dir>");
+      if (config.projects.length === 0) console.log("no allowed projects yet: wristle projects add <dir>");
       for (const p of config.projects) console.log(`${p.id}  ${p.name}  ${p.path}`);
       return EXIT.ok;
     case "add": {
@@ -132,29 +134,14 @@ async function relay(args: string[]): Promise<number> {
   }
 }
 
-async function pairCommand(code: string | undefined): Promise<number> {
-  if (!code) return usage("pair needs the code shown on the watch");
+async function pairCommand(given: string | undefined): Promise<number> {
   if (loadPairing()) {
-    console.error("already paired: run `wristle-bridge unpair` first");
+    console.error("already paired: run `wristle unpair` first");
     return EXIT.error;
   }
-  console.log("connecting…");
-  await pair(code, {
-    async confirm(sas) {
-      const rl = createInterface({ input: process.stdin, output: process.stdout });
-      try {
-        console.log(`
-  security code: ${sas.slice(0, 3)} ${sas.slice(3)}
-`);
-        const answer = await rl.question("Does the watch show the same code? Confirm it there too. [y/N] ");
-        return answer.trim().toLowerCase().startsWith("y");
-      } finally {
-        rl.close();
-      }
-    },
-  });
-  console.log("✓ paired; try `wristle-bridge ping`");
-  if (await isListening()) console.log("restart `wristle-bridge serve` so the daemon picks up the pairing");
+  await pairWithWatch(given);
+  console.log("✓ paired; try `wristle ping`");
+  if (await isListening()) console.log("restart `wristle serve` so the daemon picks up the pairing");
   return EXIT.ok;
 }
 
@@ -181,6 +168,35 @@ async function ping(): Promise<number> {
   }
   console.log(`✓ the watch opened it and answered in ${roundTripMs} ms`);
   return EXIT.ok;
+}
+
+async function key(sub: string | undefined): Promise<number> {
+  switch (sub) {
+    case undefined:
+    case "status": {
+      const apiKey = resolveApiKey(loadConfig());
+      console.log(apiKey ? `API key ${maskApiKey(apiKey.key)} (from the ${apiKey.source})` : "no API key: wristle key set");
+      return EXIT.ok;
+    }
+    case "set":
+      await enterApiKey();
+      console.log("✓ saved; send it to the watch with `wristle key send`");
+      return EXIT.ok;
+    case "send":
+      console.log("sending the API key to the watch…");
+      await sendApiKeyToWatch();
+      console.log("✓ sent (end-to-end encrypted)");
+      return EXIT.ok;
+    case "remove": {
+      const config = loadConfig();
+      delete config.apiKey;
+      saveConfig(config);
+      console.log("removed the saved key");
+      return EXIT.ok;
+    }
+    default:
+      return usage(`unknown key command: ${sub}`);
+  }
 }
 
 function model(id: string | undefined): number {
@@ -216,15 +232,21 @@ async function doctor(): Promise<number> {
   console.log(`  daemon: ${(await isListening()) ? "running" : "not running"}`);
   console.log(`  allowed projects: ${loadConfig().projects.length}`);
   console.log(`  Firebase key: ${fs.existsSync(credentialsFile()) ? "stored" : "not set up (see docs/firebase-setup.md)"}`);
-  console.log(`  watch: ${fs.existsSync(pairingFile()) ? "paired" : "not paired (wristle-bridge pair <code>)"}`);
+  console.log(`  watch: ${fs.existsSync(pairingFile()) ? "paired" : "not paired (wristle setup)"}`);
   // `claude` can be a .cmd shim on Windows, which needs a shell; a fixed command string avoids passing args through it.
   const claude =
     process.platform === "win32"
       ? spawnSync("claude --version", { encoding: "utf8", shell: true, timeout: 15_000 })
       : spawnSync("claude", ["--version"], { encoding: "utf8", timeout: 15_000 });
   check(claude.status === 0, "Claude Code", claude.status === 0 ? claude.stdout.trim() : "not found on PATH (needed for terminal sessions)");
-  // Only presence is reported, never the value.
-  console.log(`  ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? "set" : "not set (needed later for watch-started sessions)"}`);
+  const apiKey = resolveApiKey(loadConfig());
+  if (apiKey) {
+    const accepted = await checkApiKey(apiKey.key);
+    const verdict = { ok: "accepted by the API", rejected: "REJECTED by the API: run `wristle setup`", unreachable: "could not reach the API to check it" }[accepted];
+    check(accepted !== "rejected", "API key", `${maskApiKey(apiKey.key)} from the ${apiKey.source}, ${verdict}`);
+  } else {
+    console.log("  API key: not set (wristle setup)");
+  }
   return problems === 0 ? EXIT.ok : EXIT.error;
 }
 
@@ -237,6 +259,10 @@ function usage(message?: string): number {
 async function main(argv: string[]): Promise<number> {
   const [command, ...args] = argv;
   switch (command) {
+    case "setup":
+      return (await setup()).startDaemon ? serve() : EXIT.ok;
+    case "key":
+      return key(args[0]);
     case "serve":
       return serve();
     case "status":
@@ -277,6 +303,10 @@ main(process.argv.slice(2)).then(
     process.exitCode = code;
   },
   (e: unknown) => {
+    if (e instanceof SetupCancelled) {
+      process.exitCode = EXIT.error;
+      return;
+    }
     console.error(e instanceof ConfigError || e instanceof RelayError || e instanceof CryptoError ? e.message : e);
     process.exitCode = EXIT.error;
   },

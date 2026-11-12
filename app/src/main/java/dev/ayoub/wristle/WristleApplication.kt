@@ -8,6 +8,6 @@ class WristleApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        RelayFirebase.init(this)
+        RelayFirebase.initInBackground(this)
     }
 }

@@ -11,7 +11,7 @@ Wristle is a voice-first assistant for the **Samsung Galaxy Watch 4** (Wear OS) 
 
 ## External references (agent context only)
 
-These repositories are named here for your context only. **Do not mention them anywhere else** in the repo: not in code, docs, the README or commit messages. The only exception is the copyright line that the MIT license requires in [LICENSE](LICENSE).
+These repositories are named here for your context only. **Do not mention them anywhere else** in the repo: not in code, docs, the README, [LICENSE](LICENSE) or commit messages.
 
 - **mushinlab/claude-watch** (MIT): the phase 1 code is based on it.
 - **kayomarz97/wristpilot**: phase 2 inspiration only; the owner chose to build an own bridge. Its Wear app is "all rights reserved": do not copy its code. Verified 2026-11-02: its bridge daemon does not start on Windows (Unix socket file instead of a named pipe).

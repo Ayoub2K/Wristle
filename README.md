@@ -130,20 +130,36 @@ use the tile.
 
 ## Quick start
 
-You need Android Studio (for the Android SDK and `adb`), JDK 17+ and a
-Claude API key from [platform.claude.com](https://platform.claude.com).
+You need Android Studio (for the Android SDK and `adb`), JDK 17+,
+[Node.js](https://nodejs.org) 20+ (for the `wristle` command) and a Claude API
+key from [platform.claude.com](https://platform.claude.com).
 
 **1. Configure.** Create `local.properties` in the project root (it is
 git-ignored):
 
 ```properties
 sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk
-claude.apiKey=sk-ant-...
 ```
 
-The key is never compiled into the APK; it is sent to the watch after install.
+Only if you want to use the adb scripts from step 5, also add
+`claude.apiKey=sk-ant-...`. Keys are never compiled into the APK; the API key
+reaches the watch after install. For the Code half, `wristle setup` adds the
+`firebase.*` lines here itself (step 6).
 
-**2. Build.**
+**2. Install the `wristle` command** (once):
+
+```bash
+cd bridge
+npm ci
+npm run build
+npm link
+cd ..
+```
+
+`npm link` points the global `wristle` command at this checkout, so a later
+`npm run build` is picked up automatically.
+
+**3. Build the watch app.**
 
 ```bash
 ./gradlew :app:assembleRelease
@@ -153,7 +169,7 @@ Use the release build on the watch: the debug build is noticeably slower and
 uses more battery. Release builds are signed with `keystore.properties` if
 present (see `keystore.properties.example`), otherwise with the debug key.
 
-**3. Connect the watch.**
+**4. Connect the watch and install.**
 
 1. On the watch, enable developer options. On a Galaxy Watch: **Settings →
    About watch → Software → tap "Software version"** a few times. On other
@@ -172,18 +188,38 @@ present (see `keystore.properties.example`), otherwise with the debug key.
    `protocol fault`, you probably used the debug port; `adb mdns services`
    lists both.
 
-**4. Get your API key onto the watch** (once, and again after changing it or
-clearing app data). Without a key, the app opens on a screen that shows these
-options:
+**5. Chat: put your API key on the watch** (once, and again after changing
+it or clearing app data). Without a key, the app opens on a screen that shows
+the options:
 
-- **`wristle setup`** (from [`bridge/`](bridge/README.md)): pick **Chat**
-  with the arrow keys. It checks your key against the API and puts it on the
-  watch over adb, finding the watch on your Wi-Fi and helping you pair adb if
-  needed. With **Code** it also pairs the watch with the bridge and sends the
-  key end-to-end encrypted; `wristle key send` sends it again later.
+- **`wristle setup`** and pick **Chat** with the arrow keys. It checks your
+  key against the API and puts it on the watch over adb, finding the watch on
+  your Wi-Fi and helping you pair adb if needed.
 - **Over adb by hand:** `.\setup-key.ps1` (Windows PowerShell) or
-  `./setup-key.sh` (macOS / Linux / Git Bash).
+  `./setup-key.sh` (macOS / Linux / Git Bash), with `claude.apiKey` from step 1.
 - **Typed on the watch:** possible, but the key is long.
+
+That's all for Chat: open Wristle, tap **Chat** and ask. To start it with the
+Home key, see [Launching Wristle](#launching-wristle).
+
+**6. Optional, Code: control Claude Code from the watch.** Run `wristle setup`
+again and pick **Code**. It needs your own free Firebase project as the relay
+between the watch and your computer, and walks you through it:
+
+- The few steps that need a browser are explained one by one, with links:
+  create the Firebase project, download its service account key, create the
+  Firestore database and click **Get started** under Authentication.
+- The rest it does itself: it publishes the Firestore rules, turns on
+  anonymous sign-in, registers the watch app, writes its `firebase.*` values
+  into `local.properties` and offers to rebuild and install the watch app.
+- Then it asks for your API key (sessions on the computer use it too), the
+  folders the watch may start sessions in, and the pairing code that **Code**
+  shows on the watch. It sends the key to the watch end-to-end encrypted and
+  starts the bridge, which keeps running in that window.
+
+Later, start the bridge with `wristle serve`; `wristle doctor` checks the
+setup. More in [`bridge/README.md`](bridge/README.md) and, for the manual
+Firebase route, [`docs/firebase-setup.md`](docs/firebase-setup.md).
 
 ---
 

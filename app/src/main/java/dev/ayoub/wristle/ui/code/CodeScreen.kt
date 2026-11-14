@@ -65,7 +65,11 @@ fun CodeScreen(
     CenteredList(state = listState) {
         item { Text("</>", color = Accent, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
         when (state) {
-            PairingState.NotConfigured -> item { Info(stringResource(R.string.relay_not_configured)) }
+            PairingState.NotConfigured -> {
+                item { Info(stringResource(R.string.relay_not_configured)) }
+                item { Info("wristle setup", color = Accent, monospace = true) }
+                item { Info(stringResource(R.string.relay_not_configured_detail), color = Color.Gray) }
+            }
             PairingState.Unpaired, PairingState.Working -> {
                 item { CircularProgressIndicator(indicatorColor = Accent, modifier = Modifier.padding(8.dp)) }
                 item { Info(stringResource(R.string.pair_getting_code)) }

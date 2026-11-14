@@ -4,7 +4,7 @@
 
 # Wristle
 
-**A voice-first Claude assistant that lives on your wrist.**
+**Talk to the Claude API from your wrist, and run Claude Code on your computer from it too.**
 
 <table>
   <tr>
@@ -19,12 +19,12 @@
   </tr>
   <tr>
     <td align="center"><img src="./docs/screenshots/settings.png" alt="Settings" width="200" /></td>
-    <td align="center"><img src="./docs/screenshots/code.png" alt="Code half: computer control coming later" width="200" /></td>
+    <td align="center"><img src="./docs/screenshots/code.png" alt="Code half: an allowed project on the computer" width="200" /></td>
     <td></td>
   </tr>
   <tr>
     <td align="center"><sub><i>Settings</i></sub></td>
-    <td align="center"><sub><i>Code (coming in phase 2)</i></sub></td>
+    <td align="center"><sub><i>Code: pick a project, say what to do</i></sub></td>
     <td></td>
   </tr>
 </table>
@@ -33,28 +33,13 @@ Press and hold the Home key, ask a question out loud, and watch the answer
 stream in while it is read back to you. The watch talks straight to the
 Claude API over its own Wi-Fi or LTE: no phone, no computer, no server.
 
-[What it does](#what-it-does) · [Compatibility](#compatibility) · [How it works](#how-it-works) · [Quick start](#quick-start) · [Launching](#launching-wristle) · [Roadmap](docs/phase-1-plan.md)
+Tap **Code** instead, pick a project on your computer and say what you want
+to know: a Claude Code session runs there and the answer comes back to your
+wrist, end-to-end encrypted.
+
+[What it does](#what-it-does) · [Compatibility](#compatibility) · [How it works](#how-it-works) · [Quick start](#quick-start) · [Launching](#launching-wristle) · [Computer bridge](bridge/README.md) · [Roadmap](docs/phase-2-plan.md)
 
 </div>
-
----
-
-## ⚠️ Project status — read this first
-
-This is a **personal hobby project**. It runs every day on my Galaxy Watch 4.
-It is public because someone else might enjoy it, not because it is
-production-grade.
-
-- **Unofficial.** Not affiliated with, sponsored or endorsed by Anthropic.
-  "Claude" is a trademark of Anthropic, PBC, and is used here only to say
-  which API the app talks to.
-- **You pay for your own usage.** The app uses your own Claude API key
-  (pay-as-you-go). Set a spending limit in the Claude Console.
-- **The API key lives on the watch,** encrypted with a key from the Android
-  Keystore. Anyone with your unlocked watch and developer access could try
-  to get at it.
-- **Sideload only.** There is no Play Store build; you install it with `adb`.
-- **Expect breakage.** Wear OS, One UI Watch and the APIs underneath all move.
 
 ---
 
@@ -72,10 +57,32 @@ production-grade.
   and carry on.
 - ⚡ **Three ways in**: press and hold the Home key (Wristle as digital
   assistant), a one-tap **tile**, or the app list.
-- 🟧 **Two half moons.** The start screen splits into *Chat* and *Code*. Code
-  is where controlling your computer from the watch will live (phase 2).
-- 🔒 **No accounts, no cloud of its own, no analytics.** The only outbound
-  traffic is the watch talking to the Claude API with your key.
+- 💻 **Claude Code from your wrist.** The *Code* half pairs with a small
+  bridge on your computer (`wristle setup`; Windows, macOS and Linux). Pick an
+  allowed project, say what you want to know, and a read-only Claude Code
+  session runs there; you see its progress, the answer and what it cost.
+  Approving tool use from the watch is next.
+- 🔒 **No accounts, no cloud of its own, no analytics.** Chat only talks to the
+  Claude API with your key. Code adds your own free Firebase project as the
+  relay, with end-to-end encryption between watch and computer.
+
+---
+
+## Project status
+
+A **personal hobby project** that runs every day on my Galaxy Watch 4; public
+because someone else might enjoy it, not because it is production-grade.
+
+- **Unofficial.** Not affiliated with, sponsored or endorsed by Anthropic.
+  "Claude" is a trademark of Anthropic, PBC, and is used here only to say
+  which API the app talks to.
+- **You pay for your own usage** with your own Claude API key (pay-as-you-go).
+  Set a spending limit in the Claude Console.
+- **The API key lives on the watch,** encrypted with a key from the Android
+  Keystore. Anyone with your unlocked watch and developer access could try
+  to get at it.
+- **Sideload only.** No Play Store build; you install it with `adb`.
+- **Expect breakage.** Wear OS, One UI Watch and the APIs underneath all move.
 
 ---
 

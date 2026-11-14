@@ -40,7 +40,8 @@
     <string name="history_delete">Delete</string>
 
     <string name="relay_test_title">Relay test</string>
-    <string name="relay_not_configured">Firebase is not set up in this build. See docs/firebase-setup.md.</string>
+    <string name="relay_not_configured">Code reaches your computer through your own free Firebase project, and this build has none yet. On your computer, run:</string>
+    <string name="relay_not_configured_detail">It sets up Firebase and rebuilds the app with it.</string>
     <string name="relay_connecting">Connecting…</string>
     <string name="relay_ready">Ready. Run `wristle relay test` on your computer.</string>
     <string name="relay_watch_id">Watch %1$s</string>

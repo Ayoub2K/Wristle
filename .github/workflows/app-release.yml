@@ -1,0 +1,81 @@
+name: app release
+
+# Builds the watch app's release APK for a version tag (v0.2.0, …) and attaches it to a GitHub release.
+# The APK has no secrets in it: the API key reaches the watch after install, and without local.properties the
+# Firebase relay is off, so this build offers Chat; Code needs a build with your own Firebase (`wristle setup`).
+# Signing uses a fixed key from the repository secrets, so updates install over each other (see docs/releasing.md).
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.WRISTLE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.WRISTLE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.WRISTLE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.WRISTLE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::No signing key in the repository secrets; see docs/releasing.md"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > release.keystore
+          {
+            echo "storeFile=release.keystore"
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+
+      - name: Version
+        id: version
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then name="${GITHUB_REF_NAME#v}"; else name="0.0.0-dev.${GITHUB_RUN_NUMBER}"; fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Test and build
+        run: >
+          ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleRelease
+          -Pwristle.versionName=${{ steps.version.outputs.name }}
+          -Pwristle.versionCode=${{ github.run_number }}
+
+      - name: Collect APK
+        run: cp app/build/outputs/apk/release/app-release.apk "wristle-${{ steps.version.outputs.name }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wristle-${{ steps.version.outputs.name }}
+          path: wristle-*.apk
+
+      - name: GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" wristle-*.apk --title "Wristle $GITHUB_REF_NAME" --generate-notes \
+            --notes "Install with \`adb install -r wristle-${{ steps.version.outputs.name }}.apk\`, then run \`wristle setup\` → Chat to put your API key on the watch. This APK offers Chat; for Code, build the app with your own Firebase project (see the README)."
+
+      - name: Remove signing files
+        if: always()
+        run: rm -f release.keystore keystore.properties

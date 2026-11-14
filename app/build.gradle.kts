@@ -30,8 +30,9 @@ android {
         applicationId = "dev.ayoub.wristle"
         minSdk = 30
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1"
+        // Release builds in CI pass these from the git tag (see .github/workflows/app-release.yml).
+        versionCode = (findProperty("wristle.versionCode") as String?)?.toInt() ?: 1
+        versionName = findProperty("wristle.versionName") as String? ?: "0.1"
         buildConfigField("String", "FIREBASE_PROJECT_ID", firebaseField("projectId"))
         buildConfigField("String", "FIREBASE_APP_ID", firebaseField("appId"))
         buildConfigField("String", "FIREBASE_API_KEY", firebaseField("apiKey"))

@@ -74,7 +74,7 @@
     <string name="key_setup_from_computer">Easiest: send it from your computer. Run there:</string>
     <string name="key_setup_pair">Pair with computer</string>
     <string name="key_setup_type">Type it here</string>
-    <string name="key_setup_adb">Or over adb: setup-key (see the README)</string>
+    <string name="key_setup_adb">Or over adb (see the README)</string>
     <string name="key_setup_saved">API key …%1$s saved</string>
     <string name="key_setup_start">Start</string>
     <string name="key_setup_replace">Type a new key</string>

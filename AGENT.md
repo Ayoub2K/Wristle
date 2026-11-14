@@ -63,7 +63,7 @@ npm ci --ignore-scripts
 npm run build
 npm test                              # unit tests
 npm run smoke                         # end-to-end run of the built CLI
-``` Sideload steps for the watch are in the [README](README.md#install-on-the-galaxy-watch-4).
+``` Sideload steps for the watch are in the [README](README.md#get-started).
 
 ## Code layout
 
